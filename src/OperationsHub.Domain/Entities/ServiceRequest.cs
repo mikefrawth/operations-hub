@@ -98,6 +98,11 @@ public sealed class ServiceRequest
         UpdatedAtUtc = updatedAtUtc;
     }
 
+    public void AdvanceVersion()
+    {
+        Version = checked(Version + 1);
+    }
+
     private static bool IsPermittedTransition(ServiceRequestStatus current, ServiceRequestStatus next) =>
         current switch
         {

@@ -57,18 +57,26 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         return new PagedResult<ServiceRequestListItemDto>(result.Items.Select(MapList).ToList(), result.Page, result.PageSize, result.TotalCount);
     }
 
+    public async Task<RequestOperationResult<IReadOnlyList<OpenRequestSummaryDto>>> GetOpenRequestSummariesAsync(RequestActor actor, CancellationToken cancellationToken)
+    {
+        if (actor.Role is not (RequestActorRole.Manager or RequestActorRole.Administrator)) return Forbidden<IReadOnlyList<OpenRequestSummaryDto>>();
+        return Success(await store.GetOpenRequestSummariesAsync(cancellationToken));
+    }
+
     public async Task<RequestOperationResult<ServiceRequestDetailDto>> UpdateAsync(RequestActor actor, Guid id, UpdateServiceRequestCommand command, CancellationToken cancellationToken)
     {
         var request = await store.FindAsync(id, cancellationToken);
         if (request is null) return NotFound<ServiceRequestDetailDto>();
         if (actor.Role != RequestActorRole.Requester || request.RequesterId != actor.UserId) return Forbidden<ServiceRequestDetailDto>();
+        if (request.Version != command.Version) return Conflict<ServiceRequestDetailDto>();
         var validation = await ValidateRequestAsync(command.Title, command.Description, command.RequestTypeId, command.Priority, command.DepartmentId, cancellationToken);
         if (validation is not null) return validation;
 
-        try { request.Update(command.Title!.Trim(), command.Description!.Trim(), command.RequestTypeId, command.Priority, command.DepartmentId, timeProvider.GetUtcNow()); }
+        try { request.Update(command.Title!.Trim(), command.Description!.Trim(), command.RequestTypeId, command.Priority, command.DepartmentId, timeProvider.GetUtcNow()); request.AdvanceVersion(); }
         catch (InvalidOperationException exception) { return Validation<ServiceRequestDetailDto>("status", exception.Message); }
         store.Add(new AuditEvent(Guid.NewGuid(), request.Id, "request-updated", actor.UserId, null, request.UpdatedAtUtc));
-        await store.SaveChangesAsync(cancellationToken);
+        try { await store.SaveChangesAsync(cancellationToken); }
+        catch (RequestStoreConcurrencyException) { return Conflict<ServiceRequestDetailDto>(); }
         return Success(await MapAsync(request, cancellationToken));
     }
 
@@ -80,12 +88,13 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         var assigneeId = command.AssigneeId?.Trim();
         if (string.IsNullOrWhiteSpace(assigneeId)) return Validation<ServiceRequestDetailDto>("assigneeId", "Assignee is required.");
         if (!await store.UserExistsAsync(assigneeId, cancellationToken)) return Validation<ServiceRequestDetailDto>("assigneeId", "The assignee does not exist.");
+        if (request.Version != command.Version) return Conflict<ServiceRequestDetailDto>();
         var now = timeProvider.GetUtcNow();
-        try { request.Assign(assigneeId, now); }
-        catch (InvalidOperationException exception) { return Validation<ServiceRequestDetailDto>("status", exception.Message); }
-        store.Add(new RequestAssignment(Guid.NewGuid(), request.Id, assigneeId, actor.UserId, now));
-        store.Add(new AuditEvent(Guid.NewGuid(), request.Id, "request-assigned", actor.UserId, assigneeId, now));
-        await store.SaveChangesAsync(cancellationToken);
+        var result = await store.AssignUsingProcedureAsync(request.Id, assigneeId, actor.UserId, command.Version, now, cancellationToken);
+        if (result.Status == ProcedureAssignmentStatus.NotFound) return NotFound<ServiceRequestDetailDto>();
+        if (result.Status == ProcedureAssignmentStatus.Conflict) return Conflict<ServiceRequestDetailDto>();
+        if (result.Status == ProcedureAssignmentStatus.Closed) return Validation<ServiceRequestDetailDto>("status", "Closed requests cannot be assigned.");
+        await store.RefreshAsync(request, cancellationToken);
         return Success(await MapAsync(request, cancellationToken));
     }
 
@@ -94,12 +103,14 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         var request = await store.FindAsync(id, cancellationToken);
         if (request is null) return NotFound<ServiceRequestDetailDto>();
         if (!CanManage(actor, request)) return Forbidden<ServiceRequestDetailDto>();
+        if (request.Version != command.Version) return Conflict<ServiceRequestDetailDto>();
         var now = timeProvider.GetUtcNow();
-        try { request.ChangeStatus(command.Status, now); }
+        try { request.ChangeStatus(command.Status, now); request.AdvanceVersion(); }
         catch (InvalidOperationException exception) { return Validation<ServiceRequestDetailDto>("status", exception.Message); }
         store.Add(new RequestStatusHistory(Guid.NewGuid(), request.Id, command.Status, actor.UserId, now));
         store.Add(new AuditEvent(Guid.NewGuid(), request.Id, "status-changed", actor.UserId, command.Status.ToString(), now));
-        await store.SaveChangesAsync(cancellationToken);
+        try { await store.SaveChangesAsync(cancellationToken); }
+        catch (RequestStoreConcurrencyException) { return Conflict<ServiceRequestDetailDto>(); }
         return Success(await MapAsync(request, cancellationToken));
     }
 
@@ -132,10 +143,11 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
 
     private static bool CanView(RequestActor actor, ServiceRequest request) => actor.Role switch { RequestActorRole.Requester => request.RequesterId == actor.UserId, RequestActorRole.Technician => request.AssigneeId == actor.UserId, _ => true };
     private static bool CanManage(RequestActor actor, ServiceRequest request) => actor.Role is RequestActorRole.Manager or RequestActorRole.Administrator || actor.Role == RequestActorRole.Technician && request.AssigneeId == actor.UserId;
-    private async Task<ServiceRequestDetailDto> MapAsync(ServiceRequest request, CancellationToken cancellationToken) => new(request.Id, request.RequestNumber, request.Title, request.Description, request.RequestTypeId, request.DepartmentId, request.Status, request.Priority, request.RequesterId, request.AssigneeId, request.CreatedAtUtc, request.UpdatedAtUtc, (await store.GetAssignmentsAsync(request.Id, cancellationToken)).Select(x => new RequestAssignmentDto(x.AssigneeId, x.AssignedById, x.AssignedAtUtc)).ToList(), (await store.GetCommentsAsync(request.Id, cancellationToken)).Select(x => new RequestCommentDto(x.AuthorId, x.Body, x.CreatedAtUtc)).ToList(), (await store.GetStatusHistoryAsync(request.Id, cancellationToken)).Select(x => new RequestStatusHistoryDto(x.Status, x.ChangedById, x.ChangedAtUtc)).ToList());
+    private async Task<ServiceRequestDetailDto> MapAsync(ServiceRequest request, CancellationToken cancellationToken) => new(request.Id, request.RequestNumber, request.Title, request.Description, request.RequestTypeId, request.DepartmentId, request.Status, request.Priority, request.RequesterId, request.AssigneeId, request.CreatedAtUtc, request.UpdatedAtUtc, request.Version, (await store.GetAssignmentsAsync(request.Id, cancellationToken)).Select(x => new RequestAssignmentDto(x.AssigneeId, x.AssignedById, x.AssignedAtUtc)).ToList(), (await store.GetCommentsAsync(request.Id, cancellationToken)).Select(x => new RequestCommentDto(x.AuthorId, x.Body, x.CreatedAtUtc)).ToList(), (await store.GetStatusHistoryAsync(request.Id, cancellationToken)).Select(x => new RequestStatusHistoryDto(x.Status, x.ChangedById, x.ChangedAtUtc)).ToList());
     private static ServiceRequestListItemDto MapList(ServiceRequest x) => new(x.Id, x.RequestNumber, x.Title, x.Status, x.Priority, x.RequesterId, x.AssigneeId, x.CreatedAtUtc, x.UpdatedAtUtc);
     private static RequestOperationResult<T> Success<T>(T value) => new(RequestOperationStatus.Success, value, new Dictionary<string, string[]>());
     private static RequestOperationResult<T> Validation<T>(string field, string message) => new(RequestOperationStatus.ValidationFailed, default, new Dictionary<string, string[]> { [field] = [message] });
     private static RequestOperationResult<T> NotFound<T>() => new(RequestOperationStatus.NotFound, default, new Dictionary<string, string[]>());
     private static RequestOperationResult<T> Forbidden<T>() => new(RequestOperationStatus.Forbidden, default, new Dictionary<string, string[]>());
+    private static RequestOperationResult<T> Conflict<T>() => new(RequestOperationStatus.Conflict, default, new Dictionary<string, string[]> { ["version"] = ["The request was changed by another user. Refresh and try again."] });
 }

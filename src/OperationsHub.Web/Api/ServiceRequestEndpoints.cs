@@ -11,6 +11,7 @@ public static class ServiceRequestEndpoints
     {
         var group = endpoints.MapGroup("/api/requests").RequireAuthorization();
         group.MapGet("/", SearchAsync);
+        group.MapGet("/open-summary", GetOpenRequestSummariesAsync);
         group.MapGet("/{id:guid}", GetAsync);
         group.MapPost("/", CreateAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         group.MapPut("/{id:guid}", UpdateAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
@@ -21,6 +22,7 @@ public static class ServiceRequestEndpoints
     }
 
     private static Task<PagedResult<ServiceRequestListItemDto>> SearchAsync(HttpContext context, [AsParameters] ServiceRequestSearchQuery query, IServiceRequestWorkflowService service, CancellationToken cancellationToken) => service.SearchAsync(GetActor(context.User), query, cancellationToken);
+    private static async Task<IResult> GetOpenRequestSummariesAsync(HttpContext context, IServiceRequestWorkflowService service, CancellationToken cancellationToken) => ToResult(await service.GetOpenRequestSummariesAsync(GetActor(context.User), cancellationToken));
     private static async Task<IResult> GetAsync(HttpContext context, Guid id, IServiceRequestWorkflowService service, CancellationToken cancellationToken) => ToResult(await service.GetAsync(GetActor(context.User), id, cancellationToken));
     private static async Task<IResult> CreateAsync(HttpContext context, CreateServiceRequestCommand command, IServiceRequestWorkflowService service, CancellationToken cancellationToken) => ToResult(await service.CreateAsync(GetActor(context.User), command, cancellationToken), StatusCodes.Status201Created);
     private static async Task<IResult> UpdateAsync(HttpContext context, Guid id, UpdateServiceRequestCommand command, IServiceRequestWorkflowService service, CancellationToken cancellationToken) => ToResult(await service.UpdateAsync(GetActor(context.User), id, command, cancellationToken));
@@ -42,6 +44,7 @@ public static class ServiceRequestEndpoints
         RequestOperationStatus.ValidationFailed => Results.ValidationProblem(result.Errors),
         RequestOperationStatus.NotFound => Results.NotFound(),
         RequestOperationStatus.Forbidden => Results.Forbid(),
+        RequestOperationStatus.Conflict => Results.Conflict(result.Errors),
         _ => Results.Problem(),
     };
 

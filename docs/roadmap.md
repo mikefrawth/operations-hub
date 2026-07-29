@@ -89,12 +89,21 @@ Exit gate passed:
 
 ## Milestone 4 — MySQL demonstration and interview-ready MVP
 
+Status: **complete (2026-07-29)**
+
 - `vw_open_request_summary`
 - `sp_assign_request`
 - Explicit transactional workflow and rollback coverage
 - Handwritten parameterized SQL
 - Optimistic concurrency and conflict response coverage
 - Query indexes and `EXPLAIN` documentation
+
+Exit gate passed:
+
+- Managers and administrators can view the open-request summary backed by a MySQL view.
+- Assignment runs through a parameterized stored-procedure call that locks the request, increments its version, and commits request, assignment-history, and audit writes together.
+- Request updates, status changes, and assignments return a conflict result when their submitted version is stale.
+- MySQL integration tests cover successful procedure writes, stale-version rollback, the reporting view, and the application conflict result.
 
 ## Milestone 5 — engineering hardening
 

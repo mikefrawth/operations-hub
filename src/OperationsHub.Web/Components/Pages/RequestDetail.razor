@@ -118,9 +118,9 @@ else
         assignmentInput = new() { AssigneeId = request.AssigneeId };
     }
 
-    private async Task UpdateAsync() => await CompleteAsync(await RequestService.UpdateAsync(actor!, Id, new(editRequest.Title, editRequest.Description, editRequest.RequestTypeId, editRequest.Priority, editRequest.DepartmentId), CancellationToken.None), "Request updated.");
-    private async Task AssignAsync() => await CompleteAsync(await RequestService.AssignAsync(actor!, Id, new(assignmentInput.AssigneeId), CancellationToken.None), "Request assigned.");
-    private async Task ChangeStatusAsync() => await CompleteAsync(await RequestService.ChangeStatusAsync(actor!, Id, new(statusInput.Status), CancellationToken.None), "Status updated.");
+    private async Task UpdateAsync() => await CompleteAsync(await RequestService.UpdateAsync(actor!, Id, new(editRequest.Title, editRequest.Description, editRequest.RequestTypeId, editRequest.Priority, editRequest.DepartmentId, request!.Version), CancellationToken.None), "Request updated.");
+    private async Task AssignAsync() => await CompleteAsync(await RequestService.AssignAsync(actor!, Id, new(assignmentInput.AssigneeId, request!.Version), CancellationToken.None), "Request assigned.");
+    private async Task ChangeStatusAsync() => await CompleteAsync(await RequestService.ChangeStatusAsync(actor!, Id, new(statusInput.Status, request!.Version), CancellationToken.None), "Status updated.");
     private async Task AddCommentAsync()
     {
         await CompleteAsync(await RequestService.AddCommentAsync(actor!, Id, new(commentInput.Body), CancellationToken.None), "Comment added.");

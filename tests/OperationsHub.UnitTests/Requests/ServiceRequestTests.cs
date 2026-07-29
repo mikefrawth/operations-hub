@@ -28,4 +28,14 @@ public sealed class ServiceRequestTests
 
         Assert.Throws<InvalidOperationException>(() => request.Update("Revised", "Revised description", Guid.NewGuid(), ServiceRequestPriority.High, null, createdAt.AddMinutes(3)));
     }
+
+    [Fact]
+    public void AdvanceVersionIncrementsTheConcurrencyToken()
+    {
+        var request = new ServiceRequest(Guid.NewGuid(), "SR-20260729-000000000000000000", "Laptop setup", "Prepare a laptop for a new employee.", "requester", Guid.NewGuid(), ServiceRequestPriority.Normal, DateTimeOffset.UtcNow);
+
+        request.AdvanceVersion();
+
+        Assert.Equal((uint)1, request.Version);
+    }
 }
