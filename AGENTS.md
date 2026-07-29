@@ -4,6 +4,8 @@
 
 ### Only the author can edit Instructions section
 
+- When working on any milestone, make sure to update the web frontend as well.
+
 ## Git workflow
 
 - Create a new branch before implementing each new feature.
