@@ -1,0 +1,60 @@
+@page "/requests/open-summary"
+@attribute [Authorize(Roles = "Manager,Administrator")]
+@inject IServiceRequestWorkflowService RequestService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Open request summary</PageTitle>
+
+<div class="py-4">
+    <p class="text-uppercase text-primary fw-semibold mb-2">Operations reporting</p>
+    <h1>Open request summary</h1>
+    <p class="text-body-secondary">Current new, in-progress, and on-hold requests, sourced from the reporting view.</p>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+    else if (summaries is null)
+    {
+        <p class="text-body-secondary">Loading open requests…</p>
+    }
+    else if (summaries.Count == 0)
+    {
+        <div class="alert alert-light border" role="status">There are no open requests.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead><tr><th scope="col">Request</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Assignee</th><th scope="col">Age</th><th scope="col">Updated</th></tr></thead>
+                <tbody>
+                    @foreach (var summary in summaries)
+                    {
+                        <tr>
+                            <td><a href="requests/@summary.Id">@summary.RequestNumber</a><br /><span class="small text-body-secondary">@summary.Title</span></td>
+                            <td>@summary.Status</td><td>@summary.Priority</td><td class="text-break">@(summary.AssigneeId ?? "Unassigned")</td>
+                            <td>@FormatAge(summary.Age)</td><td>@summary.UpdatedAtUtc.LocalDateTime.ToString("g")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<OpenRequestSummaryDto>? summaries;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        var role = principal.IsInRole("Administrator") ? RequestActorRole.Administrator : RequestActorRole.Manager;
+        var actor = new RequestActor(principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."), role);
+        var result = await RequestService.GetOpenRequestSummariesAsync(actor, CancellationToken.None);
+        if (result.Succeeded) summaries = result.Value;
+        else errorMessage = "The open-request summary is unavailable.";
+    }
+
+    private static string FormatAge(TimeSpan age) => age.TotalDays >= 1 ? $"{(int)age.TotalDays}d {age.Hours}h" : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h {age.Minutes}m" : $"{Math.Max(0, (int)age.TotalMinutes)}m";
+}

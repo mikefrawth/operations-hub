@@ -73,7 +73,7 @@ public sealed class SecurityEndpointMetadataTests
             .Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/api/requests", StringComparison.Ordinal))
             .ToList();
 
-        Assert.Equal(7, endpoints.Count);
+        Assert.Equal(8, endpoints.Count);
         Assert.All(endpoints, endpoint => Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()));
         Assert.All(
             endpoints.Where(endpoint => !endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods.Contains(HttpMethods.Get, StringComparer.Ordinal)),

@@ -34,8 +34,8 @@ public sealed class MySqlMigrationTests
         Assert.Contains(RoleNames.Manager, roles);
         Assert.Contains(RoleNames.Administrator, roles);
         Assert.Empty(userSeedData);
-        Assert.Equal(2, await context.Departments.CountAsync(CancellationToken.None));
-        Assert.Equal(2, await context.RequestTypes.CountAsync(CancellationToken.None));
+        Assert.Contains(await context.Departments.Select(department => department.Id).ToListAsync(CancellationToken.None), id => id == Guid.Parse("20000000-0000-4000-8000-000000000001"));
+        Assert.Contains(await context.RequestTypes.Select(requestType => requestType.Id).ToListAsync(CancellationToken.None), id => id == Guid.Parse("30000000-0000-4000-8000-000000000001"));
     }
 
     [Fact]

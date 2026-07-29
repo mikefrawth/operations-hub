@@ -24,10 +24,11 @@ public sealed class ServiceRequestConfiguration : IEntityTypeConfiguration<Servi
         builder.Property(request => request.Priority).HasColumnName("priority").HasConversion<int>().IsRequired();
         builder.Property(request => request.CreatedAtUtc).HasColumnName("created_at_utc").HasPrecision(6).IsRequired();
         builder.Property(request => request.UpdatedAtUtc).HasColumnName("updated_at_utc").HasPrecision(6).IsRequired();
-        builder.Property(request => request.Version).HasColumnName("version").IsRowVersion();
+        builder.Property(request => request.Version).HasColumnName("version").IsConcurrencyToken().ValueGeneratedNever();
 
         builder.HasIndex(request => request.RequestNumber).IsUnique();
         builder.HasIndex(request => new { request.Status, request.CreatedAtUtc });
+        builder.HasIndex(request => new { request.Status, request.UpdatedAtUtc });
         builder.HasIndex(request => request.RequestTypeId);
         builder.HasIndex(request => request.RequesterId);
         builder.HasIndex(request => request.DepartmentId);

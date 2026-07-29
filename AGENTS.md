@@ -5,6 +5,7 @@
 ### Only the author can edit Instructions section
 
 - When working on any milestone, make sure to update the web frontend as well.
+- Request only narrowly scoped sandbox escalations with a clear justification. Never request unrestricted shell access when a command-specific permission or safe alternative is available.
 
 ## Git workflow
 
