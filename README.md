@@ -196,6 +196,8 @@ Deployment-provider selection and production containerization are deferred to Mi
 
 - The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and production identity-provider integration are deferred.
 - Assignment uses a stable Identity user ID until Milestone 5 adds a technician directory/picker experience.
+- Inactive departments and request types cannot yet be reactivated; the administrator restoration workflow is planned for Milestone 5.
+- Milestone 5 will add a seeded portfolio scenario and UI verification for populated service-request and open-request-summary views.
 - The Compose stack contains MySQL only; application containerization is deferred until the web/database integration is reliable.
 - Integration tests cover migrations, Development-only identity initialization, security endpoint metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
 

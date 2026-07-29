@@ -109,7 +109,9 @@ Exit gate passed:
 
 - Structured logging, centralized exception handling, Problem Details, and health checks
 - Security, accessibility, performance, and test-coverage review
-- Seeded portfolio scenario, screenshots, and implementation-driven cleanup
+- Administrator reactivation workflows for inactive departments and request types, preserving the soft-deactivation audit/history model
+- Seeded portfolio scenario and UI verification that populated service-request and open-request-summary views render their data for each permitted role
+- Screenshots and implementation-driven cleanup
 
 ## Milestone 6 — CI/CD and deployment
 
