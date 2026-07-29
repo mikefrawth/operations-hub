@@ -6,9 +6,9 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**Milestone 2 — reference-data administration complete and security-reviewed.**
+**Milestone 3 — service-request workflow in progress.**
 
-The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, and administrator-only department and request-type management. The Blazor administration screen and `/api/reference-data` endpoints share validation and persistence behavior. The Milestone 2 review added sign-in throttling and account lockout, antiforgery enforcement for cookie-authenticated mutations, defensive response headers, safe API authorization responses, and production configuration that fails closed when no database connection is supplied. Service-request workflow UI and APIs remain deferred to Milestone 3.
+The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, and administrator-only department and request-type management. The Milestone 2 review added sign-in throttling and account lockout, antiforgery enforcement for cookie-authenticated mutations, defensive response headers, safe API authorization responses, and production configuration that fails closed when no database connection is supplied. Milestone 3 adds a role-scoped service-request list and protected workflow REST endpoints; interactive request create/detail screens are still in progress.
 
 ## Technology
 
@@ -178,7 +178,7 @@ The reference-data API uses the same cookie authentication as the Blazor UI. Aft
 | Local MySQL infrastructure | Implemented in Milestone 0 |
 | Identity and demo users | Implemented in Milestone 1 |
 | Department and request-type administration | Implemented in Milestone 2 |
-| Service-request workflow and REST API | Planned for Milestone 3 |
+| Service-request workflow and REST API | In progress in Milestone 3 |
 | Reporting view, stored procedure, and concurrency | Planned for Milestone 4 |
 | Production hardening and CI/CD | Planned for Milestones 5–6 |
 
@@ -195,7 +195,7 @@ Deployment-provider selection and production containerization are deferred to Mi
 ## Known limitations
 
 - The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and production identity-provider integration are deferred.
-- Service-request behavior, assignment, audit, and role-specific request views are deferred to Milestone 3.
+- Interactive service-request create and detail workflows, plus full workflow integration coverage, remain in progress in Milestone 3.
 - The Compose stack contains MySQL only; application containerization is deferred until the web/database integration is reliable.
 - Integration tests cover migrations, Development-only identity initialization, security endpoint metadata, and the reference-data create, list, and soft-deactivation workflow.
 

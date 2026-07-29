@@ -46,6 +46,10 @@ The Administrator role can create, list, rename, and deactivate departments and 
 
 The same service is exposed through administrator-only endpoints under `/api/reference-data`. All API mutations require an antiforgery request token; an authenticated client can obtain one from `GET /api/antiforgery`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
 
+## Service-request workflow
+
+Milestone 3 stores current request state in `service_requests` and preserves append-only assignment, status, comment, and audit records in their corresponding tables. Requesters can view their own requests and edit only non-resolved/non-closed ones. Technicians see and transition requests assigned to them. Managers and administrators see all requests and can assign or reassign them. The protected `/api/requests` endpoints provide paged, searchable, filterable lists plus detail, create, edit, assignment, status, and comment operations. Every cookie-authenticated mutation requires antiforgery validation.
+
 ## Commands
 
 ```bash

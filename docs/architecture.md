@@ -48,9 +48,9 @@ The Blazor Web App uses global Interactive Server rendering. This provides a coh
 
 Bootstrap is sufficient for the MVP. Components should prioritize accessibility, clear states, and task completion over custom design-system work.
 
-## Planned request lifecycle
+## Request lifecycle
 
-Beginning in Milestone 3, a request will move through explicit submitted, triaged, in-progress, blocked, resolved, closed, or cancelled states. Application operations will enforce actor permissions and domain transition rules. Successful assignment and status changes will update current state and append history/audit records in one transaction.
+Milestone 3 uses the persisted states `New`, `InProgress`, `OnHold`, `Resolved`, and `Closed`. Domain methods allow only deliberate transitions; Application use cases enforce actor permissions. Successful assignment and status changes update current state and append history/audit records in the same EF Core save operation.
 
 ## Authentication and authorization
 

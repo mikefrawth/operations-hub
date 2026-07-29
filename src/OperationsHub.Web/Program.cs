@@ -4,6 +4,7 @@ using OperationsHub.Web.Components;
 using OperationsHub.Web.Api;
 using OperationsHub.Web.Authentication;
 using OperationsHub.Application.ReferenceData;
+using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +32,7 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IReferenceDataAdministrationService, ReferenceDataAdministrationService>();
+builder.Services.AddScoped<IServiceRequestWorkflowService, ServiceRequestWorkflowService>();
 builder.Services.AddOperationsHubPersistence(builder.Configuration);
 
 var app = builder.Build();
@@ -75,6 +77,7 @@ if (app.Environment.IsDevelopment())
 app.MapStaticAssets();
 app.MapAuthenticationEndpoints();
 app.MapReferenceDataEndpoints();
+app.MapServiceRequestEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

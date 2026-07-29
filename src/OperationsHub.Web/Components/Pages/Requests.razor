@@ -1,0 +1,61 @@
+@page "/requests"
+@attribute [Authorize]
+@inject IServiceRequestWorkflowService RequestService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Service requests</PageTitle>
+
+<div class="py-4">
+    <p class="text-uppercase text-primary fw-semibold mb-2">Workflow</p>
+    <h1>Service requests</h1>
+    <p class="text-body-secondary">@viewDescription</p>
+
+    @if (requests is null)
+    {
+        <p class="text-body-secondary">Loading requests…</p>
+    }
+    else if (requests.Count == 0)
+    {
+        <p class="text-body-secondary">No service requests match this view.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th scope="col">Number</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Updated</th></tr></thead>
+                <tbody>
+                    @foreach (var request in requests)
+                    {
+                        <tr>
+                            <td>@request.RequestNumber</td>
+                            <td>@request.Title</td>
+                            <td>@request.Status</td>
+                            <td>@request.Priority</td>
+                            <td>@request.UpdatedAtUtc.LocalDateTime.ToString("g")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<ServiceRequestListItemDto>? requests;
+    private string viewDescription = "Your permitted service-request view.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        var actor = new RequestActor(
+            principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."),
+            principal.IsInRole("Administrator") ? RequestActorRole.Administrator : principal.IsInRole("Manager") ? RequestActorRole.Manager : principal.IsInRole("Technician") ? RequestActorRole.Technician : RequestActorRole.Requester);
+        viewDescription = actor.Role switch
+        {
+            RequestActorRole.Requester => "Requests you submitted.",
+            RequestActorRole.Technician => "Requests currently assigned to you.",
+            _ => "All service requests across OperationsHub.",
+        };
+        requests = (await RequestService.SearchAsync(actor, new ServiceRequestSearchQuery(), CancellationToken.None)).Items.ToList();
+    }
+}

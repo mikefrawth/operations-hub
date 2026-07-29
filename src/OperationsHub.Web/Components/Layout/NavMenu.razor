@@ -25,6 +25,9 @@
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="requests">Service requests</NavLink>
+                </div>
+                <div class="nav-item px-3">
                     <form method="post" action="/sign-out">
                         <AntiforgeryToken />
                         <button class="nav-link border-0 bg-transparent w-100 text-start" type="submit">Sign out</button>

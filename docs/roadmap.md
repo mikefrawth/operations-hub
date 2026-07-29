@@ -71,12 +71,16 @@ Exit gate passed:
 
 ## Milestone 3 — service-request workflow
 
+Status: **in progress (2026-07-29)**
+
 - Request create, detail, permitted edit, close, pagination, search, and filtering
 - Assignment/reassignment and assignment history
 - Explicit status transitions and status history
 - Chronological comments and meaningful audit events
 - Role-specific request views and selected REST endpoints
 - Unit and integration coverage for rules and authorization
+
+Implemented so far: role-scoped request listing, protected REST endpoints, request creation and requester edits, assignment and assignment history, permitted status transitions and status history, chronological comments, and audit events. The remaining exit work is a complete interactive create/detail workflow and broader integration coverage of workflow persistence and authorization.
 
 ## Milestone 4 — MySQL demonstration and interview-ready MVP
 

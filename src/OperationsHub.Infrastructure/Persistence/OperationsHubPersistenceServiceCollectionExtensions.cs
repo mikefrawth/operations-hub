@@ -5,8 +5,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using OperationsHub.Application.ReferenceData;
+using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Identity;
 using OperationsHub.Infrastructure.ReferenceData;
+using OperationsHub.Infrastructure.Requests;
 
 namespace OperationsHub.Infrastructure.Persistence;
 
@@ -67,6 +69,7 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
         });
 
         services.AddScoped<IReferenceDataStore, EntityFrameworkReferenceDataStore>();
+        services.AddScoped<IServiceRequestStore, EntityFrameworkServiceRequestStore>();
 
         return services;
     }
