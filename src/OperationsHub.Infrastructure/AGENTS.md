@@ -17,6 +17,7 @@ This project implements database persistence, ASP.NET Core Identity persistence,
 - Configure table/column lengths, indexes, unique constraints, foreign keys, precision, concurrency, and delete behavior explicitly.
 - Avoid cascades that could erase request or audit history.
 - Keep migrations deterministic and review generated SQL.
+- Keep users, password hashes, and reusable credentials out of EF model seed data. Development demo identities must use the environment-guarded runtime initializer.
 - Put durable standalone SQL artifacts in `/database`; keep application invocation code here.
 - Use explicit transactions for multi-write business operations and document surprising isolation/locking choices.
 - Test relational mappings, constraints, transactions, procedures, and raw SQL against disposable MySQL—not EF Core InMemory.

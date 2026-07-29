@@ -2,6 +2,9 @@ namespace OperationsHub.Domain.Entities;
 
 public sealed class RequestType
 {
+    public const int NameMaximumLength = 100;
+    public const int DescriptionMaximumLength = 500;
+
     private RequestType()
     {
     }
@@ -43,9 +46,9 @@ public sealed class RequestType
             throw new ArgumentException("Request type name is required.", nameof(name));
         }
 
-        if (name.Length > 100)
+        if (name.Length > NameMaximumLength)
         {
-            throw new ArgumentException("Request type name cannot exceed 100 characters.", nameof(name));
+            throw new ArgumentException($"Request type name cannot exceed {NameMaximumLength} characters.", nameof(name));
         }
 
         return name;
@@ -53,9 +56,9 @@ public sealed class RequestType
 
     private static string? ValidateDescription(string? description)
     {
-        if (description?.Length > 500)
+        if (description?.Length > DescriptionMaximumLength)
         {
-            throw new ArgumentException("Request type description cannot exceed 500 characters.", nameof(description));
+            throw new ArgumentException($"Request type description cannot exceed {DescriptionMaximumLength} characters.", nameof(description));
         }
 
         return description;

@@ -11,7 +11,7 @@ public sealed class DepartmentConfiguration : IEntityTypeConfiguration<Departmen
         builder.ToTable("departments");
         builder.HasKey(department => department.Id);
         builder.Property(department => department.Id).HasColumnName("id");
-        builder.Property(department => department.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
+        builder.Property(department => department.Name).HasColumnName("name").HasMaxLength(Department.NameMaximumLength).IsRequired();
         builder.Property(department => department.IsActive).HasColumnName("is_active").IsRequired();
         builder.Property(department => department.CreatedAtUtc).HasColumnName("created_at_utc").HasPrecision(6).IsRequired();
         builder.HasIndex(department => department.Name).IsUnique();

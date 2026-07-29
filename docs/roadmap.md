@@ -48,13 +48,17 @@ Exit gate passed:
 
 ## Milestone 2 — reference-data administration
 
-Status: **complete (2026-07-28)**
+Status: **complete and security-reviewed (2026-07-29)**
 
 - Department create, list, edit, and deactivate workflows
 - Request-type create, list, edit, and deactivate workflows
 - Administrator authorization and server-side validation
 - Blazor administration pages and API read endpoints
 - Unit and integration coverage
+- Development-only runtime demo identities; schema migrations leave public demo credentials disabled
+- Sign-in rate limiting, failed-attempt lockout, explicit cookie protections, and defensive response headers
+- Antiforgery validation on every cookie-authenticated mutation endpoint
+- Security metadata coverage for authentication and reference-data endpoints
 
 Exit gate passed:
 
@@ -63,6 +67,7 @@ Exit gate passed:
 - Request-type descriptions are optional and capped at 500 characters.
 - Deactivation preserves records for historical relationships and removes them from active-only queries.
 - Unit coverage verifies validation, duplicate rejection, and deactivation; the MySQL integration test verifies create, list, and deactivation inside a rolled-back transaction.
+- The follow-up review verified that production configuration requires an externally supplied connection string, migration-only deployments do not leave usable demo credentials, API `401`/`403` responses remain API responses, and security metadata is present on protected endpoints.
 
 ## Milestone 3 — service-request workflow
 

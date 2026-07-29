@@ -16,24 +16,24 @@ public sealed class EntityFrameworkReferenceDataStore : IReferenceDataStore
 
     public async Task<IReadOnlyList<Department>> GetDepartmentsAsync(bool activeOnly, CancellationToken cancellationToken)
     {
-        var query = database.Departments.AsNoTracking().OrderBy(department => department.Name);
+        var query = database.Departments.AsNoTracking();
         if (activeOnly)
         {
-            query = query.Where(department => department.IsActive).OrderBy(department => department.Name);
+            query = query.Where(department => department.IsActive);
         }
 
-        return await query.ToListAsync(cancellationToken);
+        return await query.OrderBy(department => department.Name).ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<RequestType>> GetRequestTypesAsync(bool activeOnly, CancellationToken cancellationToken)
     {
-        var query = database.RequestTypes.AsNoTracking().OrderBy(requestType => requestType.Name);
+        var query = database.RequestTypes.AsNoTracking();
         if (activeOnly)
         {
-            query = query.Where(requestType => requestType.IsActive).OrderBy(requestType => requestType.Name);
+            query = query.Where(requestType => requestType.IsActive);
         }
 
-        return await query.ToListAsync(cancellationToken);
+        return await query.OrderBy(requestType => requestType.Name).ToListAsync(cancellationToken);
     }
 
     public Task<Department?> FindDepartmentAsync(Guid id, CancellationToken cancellationToken) =>

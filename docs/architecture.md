@@ -54,7 +54,9 @@ Beginning in Milestone 3, a request will move through explicit submitted, triage
 
 ## Authentication and authorization
 
-ASP.NET Core Identity will be introduced in Milestone 1 with Requester, Technician, Manager, and Administrator roles. UI visibility will improve usability, but Application/Web server boundaries will enforce ownership, assignment, department, and administrative access. Public registration is not part of the initial plan.
+ASP.NET Core Identity provides Requester, Technician, Manager, and Administrator roles with an HTTP-only, same-site cookie. UI visibility improves usability, while the Web server boundary enforces administrative access. Cookie-authenticated mutation endpoints require antiforgery validation. Sign-in is throttled per remote IP, failed-password attempts lock eligible accounts, and unsafe return URLs are rejected. Public registration is not part of the initial plan.
+
+Fixed demo identities are a Development-only runtime concern. The current EF model seeds stable roles and reference data, but not users or password hashes. The remediation migration disables the historical demo identities for migration-only and non-development deployments; guarded Development startup restores the local demo password and role assignments.
 
 ## Data access
 

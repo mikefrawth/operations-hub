@@ -89,6 +89,7 @@ Do not claim a command is verified unless it completed successfully in the curre
 ## Security
 
 - Never commit real credentials, personal data, `.env`, user-secrets content, or production configuration.
+- Never put users, password hashes, or reusable credentials in EF model seed data; local demo identities must be initialized only behind an explicit Development-environment guard.
 - Enforce authorization on the server; UI visibility is not a security boundary.
 - Use ASP.NET Core Identity, secure cookies, antiforgery protection where applicable, parameterized SQL, and least privilege.
 - Avoid mass assignment and excessive response data; validate DTOs at server boundaries.

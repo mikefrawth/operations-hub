@@ -2,6 +2,8 @@ namespace OperationsHub.Domain.Entities;
 
 public sealed class Department
 {
+    public const int NameMaximumLength = 100;
+
     private Department()
     {
     }
@@ -39,9 +41,9 @@ public sealed class Department
             throw new ArgumentException("Department name is required.", nameof(name));
         }
 
-        if (name.Length > 100)
+        if (name.Length > NameMaximumLength)
         {
-            throw new ArgumentException("Department name cannot exceed 100 characters.", nameof(name));
+            throw new ArgumentException($"Department name cannot exceed {NameMaximumLength} characters.", nameof(name));
         }
 
         return name;

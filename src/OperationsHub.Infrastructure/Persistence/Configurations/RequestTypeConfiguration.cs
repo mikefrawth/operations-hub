@@ -11,8 +11,8 @@ public sealed class RequestTypeConfiguration : IEntityTypeConfiguration<RequestT
         builder.ToTable("request_types");
         builder.HasKey(requestType => requestType.Id);
         builder.Property(requestType => requestType.Id).HasColumnName("id");
-        builder.Property(requestType => requestType.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
-        builder.Property(requestType => requestType.Description).HasColumnName("description").HasMaxLength(500);
+        builder.Property(requestType => requestType.Name).HasColumnName("name").HasMaxLength(RequestType.NameMaximumLength).IsRequired();
+        builder.Property(requestType => requestType.Description).HasColumnName("description").HasMaxLength(RequestType.DescriptionMaximumLength);
         builder.Property(requestType => requestType.IsActive).HasColumnName("is_active").IsRequired();
         builder.Property(requestType => requestType.CreatedAtUtc).HasColumnName("created_at_utc").HasPrecision(6).IsRequired();
         builder.HasIndex(requestType => requestType.Name).IsUnique();

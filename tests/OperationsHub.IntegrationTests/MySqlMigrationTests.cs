@@ -1,5 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OperationsHub.Infrastructure.Identity;
 using OperationsHub.Infrastructure.Persistence;
 
@@ -8,7 +14,7 @@ namespace OperationsHub.IntegrationTests;
 public sealed class MySqlMigrationTests
 {
     [Fact]
-    public async Task InitialMigrationAppliesAndSeedsIdentityAndReferenceData()
+    public async Task LatestMigrationsApplyWithoutSchemaSeededUserAccounts()
     {
         var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
             ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only";
@@ -20,40 +26,82 @@ public sealed class MySqlMigrationTests
         await context.Database.MigrateAsync(CancellationToken.None);
 
         var roles = await context.Roles.Select(role => role.Name).ToListAsync(CancellationToken.None);
-        var users = await context.Users.Select(user => user.Email).ToListAsync(CancellationToken.None);
+        var designTimeModel = context.GetService<IDesignTimeModel>().Model;
+        var userSeedData = designTimeModel.FindEntityType(typeof(ApplicationUser))!.GetSeedData();
 
         Assert.Contains(RoleNames.Requester, roles);
         Assert.Contains(RoleNames.Technician, roles);
         Assert.Contains(RoleNames.Manager, roles);
         Assert.Contains(RoleNames.Administrator, roles);
-        Assert.Contains("administrator@operationshub.local", users);
+        Assert.Empty(userSeedData);
         Assert.Equal(2, await context.Departments.CountAsync(CancellationToken.None));
         Assert.Equal(2, await context.RequestTypes.CountAsync(CancellationToken.None));
     }
 
     [Fact]
-    public async Task SeededAdministratorCredentialsAndRoleAreValidForSignIn()
+    public async Task RemediationDisablesDemoCredentialsUntilDevelopmentInitializationRestoresThem()
     {
         var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
             ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only";
-        var options = new DbContextOptionsBuilder<OperationsHubDbContext>()
-            .UseMySQL(connectionString)
-            .Options;
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = Environments.Development,
+        });
+        builder.Configuration.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:OperationsHub"] = connectionString,
+            });
+        builder.Services.AddOperationsHubPersistence(builder.Configuration);
 
-        await using var context = new OperationsHubDbContext(options);
-        await context.Database.MigrateAsync(CancellationToken.None);
-        var administrator = await context.Users.SingleAsync(
+        using var host = builder.Build();
+        await host.Services.InitializeOperationsHubDevelopmentDatabaseAsync();
+
+        try
+        {
+            await using var scope = host.Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
+            var migrator = context.GetService<IMigrator>();
+
+            await migrator.MigrateAsync("20260729003606_InitialDatabaseAndIdentity");
+            await migrator.MigrateAsync("20260729101935_RemoveDemoIdentityFromSchemaSeed");
+            context.ChangeTracker.Clear();
+
+            var disabledAdministrator = await context.Users.SingleAsync(
+                user => user.Email == "administrator@operationshub.local",
+                CancellationToken.None);
+            var disabledRoleIds = await context.UserRoles
+                .Where(userRole => userRole.UserId == disabledAdministrator.Id)
+                .Select(userRole => userRole.RoleId)
+                .ToListAsync(CancellationToken.None);
+            var hasAdministratorRole = disabledRoleIds.Contains(
+                RoleNames.Administrator,
+                StringComparer.OrdinalIgnoreCase);
+
+            Assert.Null(disabledAdministrator.PasswordHash);
+            Assert.True(disabledAdministrator.LockoutEnabled);
+            Assert.True(disabledAdministrator.LockoutEnd > DateTimeOffset.UtcNow);
+            Assert.False(hasAdministratorRole);
+        }
+        finally
+        {
+            await host.Services.InitializeOperationsHubDevelopmentDatabaseAsync();
+        }
+
+        await using var verificationScope = host.Services.CreateAsyncScope();
+        var verificationContext = verificationScope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
+        var administrator = await verificationContext.Users.SingleAsync(
             user => user.Email == "administrator@operationshub.local",
             CancellationToken.None);
-        var roleIds = await context.UserRoles
-            .Where(userRole => userRole.UserId == administrator.Id)
-            .Select(userRole => userRole.RoleId)
-            .ToListAsync(CancellationToken.None);
         var passwordHasher = new PasswordHasher<ApplicationUser>();
-
         var passwordResult = passwordHasher.VerifyHashedPassword(administrator, administrator.PasswordHash!, "OperationsHub!2026");
 
         Assert.NotEqual(PasswordVerificationResult.Failed, passwordResult);
-        Assert.Contains(RoleNames.Administrator.ToUpperInvariant(), roleIds);
+        Assert.True(administrator.LockoutEnabled);
+        var restoredRoleIds = await verificationContext.UserRoles
+            .Where(userRole => userRole.UserId == administrator.Id)
+            .Select(userRole => userRole.RoleId)
+            .ToListAsync(CancellationToken.None);
+        Assert.Contains(RoleNames.Administrator, restoredRoleIds, StringComparer.OrdinalIgnoreCase);
     }
 }

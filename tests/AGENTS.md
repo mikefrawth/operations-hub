@@ -8,6 +8,7 @@
 - Tests must be deterministic and isolated; use UTC and controlled clocks for time-dependent rules.
 - Do not weaken assertions to accommodate broken behavior.
 - Do not use EF Core InMemory for database semantics.
+- Cover authorization, antiforgery, and rate-limit metadata when adding or changing protected endpoints.
 - Container-backed tests must clean up their own data and explain environmental prerequisites.
 
 Run:

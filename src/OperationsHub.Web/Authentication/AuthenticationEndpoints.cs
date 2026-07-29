@@ -7,11 +7,17 @@ namespace OperationsHub.Web.Authentication;
 
 public static class AuthenticationEndpoints
 {
+    public const string SignInRateLimitPolicy = "sign-in";
+
     public static IEndpointRouteBuilder MapAuthenticationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/sign-in", SignInAsync);
+        endpoints.MapPost("/sign-in", SignInAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
+            .RequireRateLimiting(SignInRateLimitPolicy);
         endpoints.MapPost("/sign-out", SignOutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
+            .RequireAuthorization();
+        endpoints.MapGet("/api/antiforgery", IssueAntiforgeryToken)
             .RequireAuthorization();
 
         return endpoints;
@@ -21,7 +27,10 @@ public static class AuthenticationEndpoints
         [FromForm] SignInInput input,
         SignInManager<ApplicationUser> signInManager)
     {
-        if (string.IsNullOrWhiteSpace(input.Email) || string.IsNullOrWhiteSpace(input.Password))
+        if (string.IsNullOrWhiteSpace(input.Email)
+            || string.IsNullOrWhiteSpace(input.Password)
+            || input.Email.Length > 256
+            || input.Password.Length > 256)
         {
             return Results.Redirect("/sign-in?error=invalid");
         }
@@ -45,13 +54,20 @@ public static class AuthenticationEndpoints
         return Results.Redirect("/");
     }
 
+    private static IResult IssueAntiforgeryToken(HttpContext context, IAntiforgery antiforgery)
+    {
+        var tokens = antiforgery.GetAndStoreTokens(context);
+        context.Response.Headers["Cache-Control"] = "no-store";
+        return Results.Ok(new AntiforgeryTokenResponse(tokens.RequestToken!, tokens.HeaderName!));
+    }
+
     private static string GetSafeReturnUrl(string? returnUrl) =>
         !string.IsNullOrWhiteSpace(returnUrl)
         && returnUrl.StartsWith('/')
         && !returnUrl.StartsWith("//", StringComparison.Ordinal)
         && !returnUrl.StartsWith("/\\", StringComparison.Ordinal)
             ? returnUrl
-            : "/administration/reference-data";
+            : "/";
 
     private sealed class SignInInput
     {
@@ -61,4 +77,6 @@ public static class AuthenticationEndpoints
 
         public string? ReturnUrl { get; init; }
     }
+
+    private sealed record AntiforgeryTokenResponse(string RequestToken, string HeaderName);
 }

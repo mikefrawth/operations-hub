@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Antiforgery;
 using OperationsHub.Application.ReferenceData;
 
 namespace OperationsHub.Web.Api;
@@ -10,14 +11,14 @@ public static class ReferenceDataEndpoints
             .RequireAuthorization(AuthorizationPolicies.Administrator);
 
         group.MapGet("/departments", GetDepartmentsAsync);
-        group.MapPost("/departments", CreateDepartmentAsync);
-        group.MapPut("/departments/{id:guid}", UpdateDepartmentAsync);
-        group.MapPost("/departments/{id:guid}/deactivate", DeactivateDepartmentAsync);
+        group.MapPost("/departments", CreateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPut("/departments/{id:guid}", UpdateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPost("/departments/{id:guid}/deactivate", DeactivateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
         group.MapGet("/request-types", GetRequestTypesAsync);
-        group.MapPost("/request-types", CreateRequestTypeAsync);
-        group.MapPut("/request-types/{id:guid}", UpdateRequestTypeAsync);
-        group.MapPost("/request-types/{id:guid}/deactivate", DeactivateRequestTypeAsync);
+        group.MapPost("/request-types", CreateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPut("/request-types/{id:guid}", UpdateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPost("/request-types/{id:guid}/deactivate", DeactivateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
         return endpoints;
     }
@@ -74,7 +75,10 @@ public static class ReferenceDataEndpoints
     {
         ReferenceDataOperationStatus.Success => Results.Ok(result.Value),
         ReferenceDataOperationStatus.ValidationFailed => Results.ValidationProblem(result.Errors, statusCode: StatusCodes.Status400BadRequest),
-        ReferenceDataOperationStatus.Conflict => Results.Conflict(new { errors = result.Errors }),
+        ReferenceDataOperationStatus.Conflict => Results.ValidationProblem(
+            result.Errors,
+            statusCode: StatusCodes.Status409Conflict,
+            title: "A reference-data record already uses this value."),
         ReferenceDataOperationStatus.NotFound => Results.NotFound(),
         _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError),
     };

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using OperationsHub.Application.ReferenceData;
@@ -27,12 +28,20 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
                 options.Password.RequireLowercase = true;
                 options.Password.RequireUppercase = true;
                 options.Password.RequireNonAlphanumeric = false;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })
             .AddEntityFrameworkStores<OperationsHubDbContext>();
 
         services.ConfigureApplicationCookie(options =>
         {
             options.LoginPath = "/sign-in";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.ExpireTimeSpan = TimeSpan.FromHours(8);
+            options.SlidingExpiration = true;
             options.Events.OnRedirectToLogin = context =>
             {
                 if (context.Request.Path.StartsWithSegments("/api"))
@@ -62,10 +71,17 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
         return services;
     }
 
-    public static async Task ApplyOperationsHubMigrationsAsync(this IServiceProvider services)
+    public static async Task InitializeOperationsHubDevelopmentDatabaseAsync(this IServiceProvider services)
     {
         await using var scope = services.CreateAsyncScope();
+        var environment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
+        if (!environment.IsDevelopment())
+        {
+            throw new InvalidOperationException("Development database initialization cannot run outside the Development environment.");
+        }
+
         var database = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
         await database.Database.MigrateAsync();
+        await DevelopmentIdentitySeeder.SeedAsync(scope.ServiceProvider);
     }
 }

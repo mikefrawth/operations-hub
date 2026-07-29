@@ -4,8 +4,6 @@ namespace OperationsHub.Application.ReferenceData;
 
 public sealed class ReferenceDataAdministrationService : IReferenceDataAdministrationService
 {
-    private const int NameMaximumLength = 100;
-    private const int DescriptionMaximumLength = 500;
     private readonly IReferenceDataStore store;
     private readonly TimeProvider timeProvider;
 
@@ -29,7 +27,7 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
 
     public async Task<ReferenceDataOperationResult<DepartmentDto>> CreateDepartmentAsync(CreateDepartmentCommand command, CancellationToken cancellationToken)
     {
-        var name = ValidateName(command.Name);
+        var name = ValidateName(command.Name, Department.NameMaximumLength);
         if (!name.Succeeded)
         {
             return Failure<DepartmentDto>(name);
@@ -48,7 +46,7 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
 
     public async Task<ReferenceDataOperationResult<DepartmentDto>> UpdateDepartmentAsync(Guid id, UpdateDepartmentCommand command, CancellationToken cancellationToken)
     {
-        var name = ValidateName(command.Name);
+        var name = ValidateName(command.Name, Department.NameMaximumLength);
         if (!name.Succeeded)
         {
             return Failure<DepartmentDto>(name);
@@ -85,7 +83,7 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
 
     public async Task<ReferenceDataOperationResult<RequestTypeDto>> CreateRequestTypeAsync(CreateRequestTypeCommand command, CancellationToken cancellationToken)
     {
-        var name = ValidateName(command.Name);
+        var name = ValidateName(command.Name, RequestType.NameMaximumLength);
         var description = ValidateDescription(command.Description);
         if (!name.Succeeded)
         {
@@ -110,7 +108,7 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
 
     public async Task<ReferenceDataOperationResult<RequestTypeDto>> UpdateRequestTypeAsync(Guid id, UpdateRequestTypeCommand command, CancellationToken cancellationToken)
     {
-        var name = ValidateName(command.Name);
+        var name = ValidateName(command.Name, RequestType.NameMaximumLength);
         var description = ValidateDescription(command.Description);
         if (!name.Succeeded)
         {
@@ -151,7 +149,7 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
         return ReferenceDataOperationResults.Success(Map(requestType));
     }
 
-    private static ReferenceDataOperationResult<string?> ValidateName(string? value)
+    private static ReferenceDataOperationResult<string?> ValidateName(string? value, int maximumLength)
     {
         var name = value?.Trim();
         if (string.IsNullOrWhiteSpace(name))
@@ -159,9 +157,9 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
             return ReferenceDataOperationResults.Failure<string?>(ReferenceDataOperationStatus.ValidationFailed, "name", "Name is required.");
         }
 
-        if (name.Length > NameMaximumLength)
+        if (name.Length > maximumLength)
         {
-            return ReferenceDataOperationResults.Failure<string?>(ReferenceDataOperationStatus.ValidationFailed, "name", $"Name cannot exceed {NameMaximumLength} characters.");
+            return ReferenceDataOperationResults.Failure<string?>(ReferenceDataOperationStatus.ValidationFailed, "name", $"Name cannot exceed {maximumLength} characters.");
         }
 
         return ReferenceDataOperationResults.Success<string?>(name);
@@ -170,9 +168,9 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
     private static ReferenceDataOperationResult<string?> ValidateDescription(string? value)
     {
         var description = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        if (description?.Length > DescriptionMaximumLength)
+        if (description?.Length > RequestType.DescriptionMaximumLength)
         {
-            return ReferenceDataOperationResults.Failure<string?>(ReferenceDataOperationStatus.ValidationFailed, "description", $"Description cannot exceed {DescriptionMaximumLength} characters.");
+            return ReferenceDataOperationResults.Failure<string?>(ReferenceDataOperationStatus.ValidationFailed, "description", $"Description cannot exceed {RequestType.DescriptionMaximumLength} characters.");
         }
 
         return ReferenceDataOperationResults.Success<string?>(description);

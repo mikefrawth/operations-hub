@@ -2,9 +2,9 @@
 
 ## Current state
 
-Milestone 1 establishes MySQL 8.4 persistence through EF Core 10 and MySQL Connector/NET's `MySql.EntityFrameworkCore` provider. The initial migration is [20260729003606_InitialDatabaseAndIdentity.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729003606_InitialDatabaseAndIdentity.cs); EF migrations are the source of truth for application schema evolution.
+Milestone 1 established MySQL 8.4 persistence through EF Core 10 and MySQL Connector/NET's `MySql.EntityFrameworkCore` provider. The initial migration is [20260729003606_InitialDatabaseAndIdentity.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729003606_InitialDatabaseAndIdentity.cs). The Milestone 2 security review added [20260729101935_RemoveDemoIdentityFromSchemaSeed.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729101935_RemoveDemoIdentityFromSchemaSeed.cs). EF migrations remain the source of truth for application schema evolution.
 
-In Development, the web host applies pending migrations at startup. Production migration execution is deliberately deferred to deployment automation.
+In Development, the web host applies pending migrations and then initializes demo identities at startup. Production migration execution is deliberately deferred to deployment automation, and non-development configuration must supply `ConnectionStrings__OperationsHub`.
 
 ## Schema
 
@@ -29,7 +29,7 @@ Indexes cover identity lookup, unique department/request-type names, request num
 
 ## Development seed data
 
-The migration seeds two departments, two request types, and these development-only accounts. Each account uses password `OperationsHub!2026`.
+The EF model seeds two departments and two request types. Development startup creates or restores the following local demo accounts with password `OperationsHub!2026`:
 
 | Role | Email |
 | --- | --- |
@@ -38,11 +38,13 @@ The migration seeds two departments, two request types, and these development-on
 | Manager | manager@operationshub.local |
 | Administrator | administrator@operationshub.local |
 
-These credentials are intentionally public development fixtures and must never be deployed.
+These credentials are intentionally public development fixtures. They have failed-attempt lockout enabled and must never be deployed. The remediation migration removes their role assignments, clears their password hashes, changes their security stamps, and locks them without deleting the user rows, preserving any historical foreign-key relationships. Its `Down` method deliberately does not restore public credentials. The environment-guarded Development initializer is the only code path that restores the password and roles.
 
 ## Reference-data administration
 
-The Administrator role can create, list, rename, and deactivate departments and request types at `/administration/reference-data`. The local `/sign-in` page posts credentials through an antiforgery-protected HTTP request, which safely establishes the cookie-backed session for the seeded demo users. Authorization redirects browser requests there, while `/api` requests receive normal `401` or `403` responses. The same service is exposed through administrator-only endpoints under `/api/reference-data`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
+The Administrator role can create, list, rename, and deactivate departments and request types at `/administration/reference-data`. The local `/sign-in` page posts credentials through an antiforgery-protected HTTP request, which establishes the cookie-backed session for Development demo users. Sign-in is limited to ten attempts per remote IP per minute, and Identity locks eligible accounts for 15 minutes after five failed attempts. Authorization redirects browser requests to sign-in, while `/api` requests receive normal `401` or `403` responses.
+
+The same service is exposed through administrator-only endpoints under `/api/reference-data`. All API mutations require an antiforgery request token; an authenticated client can obtain one from `GET /api/antiforgery`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
 
 ## Commands
 
@@ -53,7 +55,7 @@ The Administrator role can create, list, rename, and deactivate departments and 
   --startup-project src/OperationsHub.Web
 ```
 
-To add a future migration, use the same command structure with `migrations add <MigrationName>` and `--output-dir Persistence/Migrations`. Milestone 2 changed only application behavior and therefore did not require a new schema migration. The MySQL integration tests need the Compose service running at port 3307, or an `OPERATIONS_HUB_TEST_CONNECTION` override.
+To add a future migration, use the same command structure with `migrations add <MigrationName>` and `--output-dir Persistence/Migrations`. The MySQL integration tests need the Compose service running at port 3307, or an `OPERATIONS_HUB_TEST_CONNECTION` override.
 
 ## Views and stored procedures
 

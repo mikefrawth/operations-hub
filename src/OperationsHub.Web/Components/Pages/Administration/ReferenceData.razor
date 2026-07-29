@@ -1,5 +1,5 @@
 @page "/administration/reference-data"
-@attribute [Authorize(Roles = "Administrator")]
+@attribute [Authorize(Policy = AuthorizationPolicies.Administrator)]
 @inject IReferenceDataAdministrationService ReferenceDataService
 
 <PageTitle>Reference data administration</PageTitle>
@@ -25,7 +25,6 @@
                 <div class="card-body">
                     <h2 id="departments-heading" class="h4">Departments</h2>
                     <EditForm Model="newDepartment" OnValidSubmit="CreateDepartmentAsync" class="row g-2 mb-4">
-                        <DataAnnotationsValidator />
                         <div class="col-sm-8">
                             <label class="form-label" for="department-name">Department name</label>
                             <InputText id="department-name" class="form-control" @bind-Value="newDepartment.Name" maxlength="100" />
@@ -93,7 +92,6 @@
                 <div class="card-body">
                     <h2 id="request-types-heading" class="h4">Request types</h2>
                     <EditForm Model="newRequestType" OnValidSubmit="CreateRequestTypeAsync" class="row g-2 mb-4">
-                        <DataAnnotationsValidator />
                         <div class="col-12">
                             <label class="form-label" for="request-type-name">Request type name</label>
                             <InputText id="request-type-name" class="form-control" @bind-Value="newRequestType.Name" maxlength="100" />

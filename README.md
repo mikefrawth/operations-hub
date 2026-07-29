@@ -6,9 +6,9 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**Milestone 2 — reference-data administration complete.**
+**Milestone 2 — reference-data administration complete and security-reviewed.**
 
-The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, development seed data, and administrator-only department and request-type management. The Blazor administration screen and `/api/reference-data` endpoints share validation and persistence behavior. Service-request workflow UI and APIs remain deferred to Milestone 3.
+The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, and administrator-only department and request-type management. The Blazor administration screen and `/api/reference-data` endpoints share validation and persistence behavior. The Milestone 2 review added sign-in throttling and account lockout, antiforgery enforcement for cookie-authenticated mutations, defensive response headers, safe API authorization responses, and production configuration that fails closed when no database connection is supplied. Service-request workflow UI and APIs remain deferred to Milestone 3.
 
 ## Technology
 
@@ -61,7 +61,7 @@ docker compose ps
 ./eng/dotnet.sh restore
 ```
 
-The copied `.env` file contains local-development settings and is ignored by Git. `docker compose ps` shows whether MySQL has reached a healthy state. Restore downloads the NuGet dependencies required by the solution.
+The copied `.env` file contains local-development settings for Docker Compose and is ignored by Git. The web host's committed Development connection string matches the example defaults. If you change the database user, password, port, or database name in `.env`, also provide a matching `ConnectionStrings__OperationsHub` environment variable when running the web host. `docker compose ps` shows whether MySQL has reached a healthy state. Restore downloads the NuGet dependencies required by the solution.
 
 ### 2. Build and run normally
 
@@ -131,9 +131,9 @@ This reset is destructive and intended only for disposable local development dat
 
 Warnings and recommended analyzer findings fail the build.
 
-### Verified Milestone 0 commands
+### Verified Milestone 2 review commands
 
-The following commands completed successfully on Fedora 44 under WSL on 2026-07-28. Single-process build flags were used because the execution sandbox restricts some local MSBuild process communication; they are safe but generally unnecessary on a normal workstation.
+The following commands completed successfully on Fedora 44 under WSL on 2026-07-29. Single-process build flags were used because the execution sandbox restricts some local MSBuild process communication; they are safe but generally unnecessary on a normal workstation.
 
 ```bash
 ./eng/dotnet.sh restore OperationsHub.sln --disable-parallel -m:1 --verbosity minimal
@@ -147,11 +147,11 @@ docker compose up -d mysql
 docker inspect --format '{{.State.Health.Status}}' operationshub-mysql-1
 ```
 
-The build completed with zero warnings and errors, all four tests passed, formatting required no further changes, the Blazor landing page returned the expected content over loopback HTTP, and MySQL reported healthy with the expected database, `utf8mb4` character set, and `utf8mb4_0900_ai_ci` collation.
+The build completed with zero warnings and errors, all 14 tests passed, formatting required no further changes, and the MySQL-backed migration, development-identity, and reference-data integration tests passed. The local web smoke check returned the expected security headers and API `401` response without rewriting it to an HTML error page.
 
 ## Database migrations and seed data
 
-Restore the repository-pinned EF tool, then apply the initial migration:
+Restore the repository-pinned EF tool, then apply all migrations:
 
 ```bash
 ./eng/dotnet.sh tool restore
@@ -160,11 +160,15 @@ Restore the repository-pinned EF tool, then apply the initial migration:
   --startup-project src/OperationsHub.Web
 ```
 
-See [docs/database.md](docs/database.md) for the schema, ER diagram, seed data, and future migration command.
+The remediation migration removes role assignments and disables the fixed demo identities that the initial migration historically created. The web host recreates their password and role assignments only when it starts in the Development environment. See [docs/database.md](docs/database.md) for the schema, ER diagram, migration behavior, and seed data.
 
 ## Demo accounts
 
-Development-only Requester, Technician, Manager, and Administrator accounts are seeded with password `OperationsHub!2026`. See [docs/database.md](docs/database.md) for their email addresses. These credentials will never be suitable for production.
+Development-only Requester, Technician, Manager, and Administrator accounts are created at Development startup with password `OperationsHub!2026`. They have lockout enabled and are never part of the current EF model seed. See [docs/database.md](docs/database.md) for their email addresses. These public credentials are suitable only for an isolated local environment.
+
+## API antiforgery
+
+The reference-data API uses the same cookie authentication as the Blazor UI. After signing in, a non-browser client must retain the authentication and antiforgery cookies, request `GET /api/antiforgery`, and send the returned request token in the returned header name for every `POST` or `PUT` request. Missing or invalid tokens are rejected before endpoint code runs.
 
 ## Feature status
 
@@ -182,7 +186,7 @@ See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
 
 ## Screenshots
 
-Screenshots will be added after the interview-ready workflow and visual polish exist. The Milestone 0 UI is intentionally a restrained application shell.
+Screenshots will be added after the interview-ready workflow and visual polish exist. The current UI is intentionally restrained while service-request workflows remain unimplemented.
 
 ## Deployment
 
@@ -190,10 +194,10 @@ Deployment-provider selection and production containerization are deferred to Mi
 
 ## Known limitations
 
-- The development sign-in screen uses an antiforgery-protected HTTP form and supports the seeded demo accounts only; account registration, password recovery, and production identity-provider integration are deferred.
+- The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and production identity-provider integration are deferred.
 - Service-request behavior, assignment, audit, and role-specific request views are deferred to Milestone 3.
 - The Compose stack contains MySQL only; application containerization is deferred until the web/database integration is reliable.
-- Integration tests cover initial MySQL migration/seed behavior and the reference-data create, list, and soft-deactivation workflow.
+- Integration tests cover migrations, Development-only identity initialization, security endpoint metadata, and the reference-data create, list, and soft-deactivation workflow.
 
 ## License
 

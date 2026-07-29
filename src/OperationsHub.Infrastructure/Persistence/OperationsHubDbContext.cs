@@ -32,6 +32,6 @@ public sealed class OperationsHubDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(typeof(OperationsHubDbContext).Assembly);
-        DevelopmentSeedData.Apply(builder);
+        InitialSeedData.Apply(builder);
     }
 }
