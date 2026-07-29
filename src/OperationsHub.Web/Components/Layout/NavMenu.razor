@@ -25,7 +25,10 @@
         <AuthorizeView>
             <Authorized>
                 <div class="nav-item px-3">
-                    <button class="nav-link border-0 bg-transparent w-100 text-start" @onclick="SignOutAsync">Sign out</button>
+                    <form method="post" action="/sign-out">
+                        <AntiforgeryToken />
+                        <button class="nav-link border-0 bg-transparent w-100 text-start" type="submit">Sign out</button>
+                    </form>
                 </div>
             </Authorized>
             <NotAuthorized>
@@ -36,17 +39,3 @@
         </AuthorizeView>
     </nav>
 </div>
-
-@code {
-    [Inject]
-    private Microsoft.AspNetCore.Identity.SignInManager<OperationsHub.Infrastructure.Identity.ApplicationUser> SignInManager { get; set; } = null!;
-
-    [Inject]
-    private NavigationManager Navigation { get; set; } = null!;
-
-    private async Task SignOutAsync()
-    {
-        await SignInManager.SignOutAsync();
-        Navigation.NavigateTo("/", forceLoad: true);
-    }
-}

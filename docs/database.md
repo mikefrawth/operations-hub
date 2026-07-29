@@ -42,7 +42,7 @@ These credentials are intentionally public development fixtures and must never b
 
 ## Reference-data administration
 
-The Administrator role can create, list, rename, and deactivate departments and request types at `/administration/reference-data`. The local `/sign-in` page establishes a session for the seeded demo users; authorization redirects browser requests there, while `/api` requests receive normal `401` or `403` responses. The same service is exposed through administrator-only endpoints under `/api/reference-data`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
+The Administrator role can create, list, rename, and deactivate departments and request types at `/administration/reference-data`. The local `/sign-in` page posts credentials through an antiforgery-protected HTTP request, which safely establishes the cookie-backed session for the seeded demo users. Authorization redirects browser requests there, while `/api` requests receive normal `401` or `403` responses. The same service is exposed through administrator-only endpoints under `/api/reference-data`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
 
 ## Commands
 

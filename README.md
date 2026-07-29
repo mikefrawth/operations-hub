@@ -190,7 +190,7 @@ Deployment-provider selection and production containerization are deferred to Mi
 
 ## Known limitations
 
-- The development sign-in screen is intentionally minimal and supports the seeded demo accounts only; account registration, password recovery, and production identity-provider integration are deferred.
+- The development sign-in screen uses an antiforgery-protected HTTP form and supports the seeded demo accounts only; account registration, password recovery, and production identity-provider integration are deferred.
 - Service-request behavior, assignment, audit, and role-specific request views are deferred to Milestone 3.
 - The Compose stack contains MySQL only; application containerization is deferred until the web/database integration is reliable.
 - Integration tests cover initial MySQL migration/seed behavior and the reference-data create, list, and soft-deactivation workflow.

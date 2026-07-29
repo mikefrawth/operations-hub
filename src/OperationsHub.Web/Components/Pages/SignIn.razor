@@ -1,7 +1,5 @@
 @page "/sign-in"
 @attribute [AllowAnonymous]
-@inject Microsoft.AspNetCore.Identity.SignInManager<OperationsHub.Infrastructure.Identity.ApplicationUser> SignInManager
-@inject NavigationManager Navigation
 
 <PageTitle>Sign in</PageTitle>
 
@@ -10,52 +8,32 @@
     <h1>Sign in</h1>
     <p class="text-body-secondary">Use an authorized OperationsHub account to access administration features.</p>
 
-    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    @if (Error == "invalid")
     {
         <div class="alert alert-danger" role="alert">@errorMessage</div>
     }
 
-    <EditForm Model="input" OnValidSubmit="SignInAsync">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+    <form method="post" action="/sign-in">
+        <AntiforgeryToken />
+        <input name="returnUrl" type="hidden" value="@ReturnUrl" />
         <div class="mb-3">
             <label class="form-label" for="email">Email address</label>
-            <InputText id="email" class="form-control" @bind-Value="input.Email" autocomplete="username" />
-            <ValidationMessage For="() => input.Email" />
+            <input id="email" class="form-control" name="email" type="email" autocomplete="username" required />
         </div>
         <div class="mb-3">
             <label class="form-label" for="password">Password</label>
-            <InputText id="password" class="form-control" type="password" @bind-Value="input.Password" autocomplete="current-password" />
-            <ValidationMessage For="() => input.Password" />
+            <input id="password" class="form-control" name="password" type="password" autocomplete="current-password" required />
         </div>
         <button class="btn btn-primary" type="submit">Sign in</button>
-    </EditForm>
+    </form>
 </div>
 
 @code {
-    private readonly SignInInput input = new();
-    private string? errorMessage;
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
 
-    private async Task SignInAsync()
-    {
-        errorMessage = null;
-        var result = await SignInManager.PasswordSignInAsync(input.Email!, input.Password!, false, lockoutOnFailure: true);
-        if (!result.Succeeded)
-        {
-            errorMessage = "The email address or password is not valid.";
-            return;
-        }
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
 
-        Navigation.NavigateTo("/administration/reference-data", forceLoad: true);
-    }
-
-    private sealed class SignInInput
-    {
-        [System.ComponentModel.DataAnnotations.Required]
-        [System.ComponentModel.DataAnnotations.EmailAddress]
-        public string? Email { get; set; }
-
-        [System.ComponentModel.DataAnnotations.Required]
-        public string? Password { get; set; }
-    }
+    private const string errorMessage = "The email address or password is not valid.";
 }

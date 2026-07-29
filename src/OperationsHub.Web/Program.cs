@@ -1,5 +1,6 @@
 using OperationsHub.Web.Components;
 using OperationsHub.Web.Api;
+using OperationsHub.Web.Authentication;
 using OperationsHub.Application.ReferenceData;
 using OperationsHub.Infrastructure.Persistence;
 
@@ -35,6 +36,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapStaticAssets();
+app.MapAuthenticationEndpoints();
 app.MapReferenceDataEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
