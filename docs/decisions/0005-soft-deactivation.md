@@ -13,4 +13,4 @@ Deactivate departments and request types instead of deleting records through nor
 
 ## Consequences
 
-Historical requests retain accurate relationships and administrators can control future selection. Queries and validation must consistently distinguish active choices from historical records, and uniqueness rules must define whether names can be reused after deactivation.
+Historical requests retain accurate relationships and administrators can control future selection. Queries and validation consistently distinguish active choices from historical records. Names remain globally unique, including after deactivation, so retired names cannot be reused without an explicit future restoration or rename workflow.

@@ -23,7 +23,7 @@ erDiagram
 
 Identity supplies `AspNetUsers`, `AspNetRoles`, and its supporting tables. Application tables use lowercase snake case: `departments`, `request_types`, `service_requests`, `request_assignments`, `request_comments`, `request_status_history`, `work_logs`, and `audit_events`.
 
-All application timestamps are UTC `datetime(6)`. Referenced records use restrictive foreign keys, so no request or audit history can be removed by a cascade. Departments and request types have `is_active` for future soft deactivation. `service_requests.version` is configured as EF's concurrency token; the update workflow that increments and returns it arrives in Milestone 4.
+All application timestamps are UTC `datetime(6)`. Referenced records use restrictive foreign keys, so no request or audit history can be removed by a cascade. Departments and request types have `is_active`; Milestone 2 administrators can deactivate them while retaining the row and its historical relationships. Names remain unique even after deactivation, so a retired name cannot be reused. `service_requests.version` is configured as EF's concurrency token; the update workflow that increments and returns it arrives in Milestone 4.
 
 Indexes cover identity lookup, unique department/request-type names, request number, request list filters, foreign keys, and chronological history access.
 
@@ -40,6 +40,10 @@ The migration seeds two departments, two request types, and these development-on
 
 These credentials are intentionally public development fixtures and must never be deployed.
 
+## Reference-data administration
+
+The Administrator role can create, list, rename, and deactivate departments and request types at `/administration/reference-data`. The local `/sign-in` page establishes a session for the seeded demo users; authorization redirects browser requests there, while `/api` requests receive normal `401` or `403` responses. The same service is exposed through administrator-only endpoints under `/api/reference-data`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
+
 ## Commands
 
 ```bash
@@ -49,7 +53,7 @@ These credentials are intentionally public development fixtures and must never b
   --startup-project src/OperationsHub.Web
 ```
 
-To add a future migration, use the same command structure with `migrations add <MigrationName>` and `--output-dir Persistence/Migrations`. The MySQL migration integration test needs the Compose service running at port 3307, or an `OPERATIONS_HUB_TEST_CONNECTION` override.
+To add a future migration, use the same command structure with `migrations add <MigrationName>` and `--output-dir Persistence/Migrations`. Milestone 2 changed only application behavior and therefore did not require a new schema migration. The MySQL integration tests need the Compose service running at port 3307, or an `OPERATIONS_HUB_TEST_CONNECTION` override.
 
 ## Views and stored procedures
 

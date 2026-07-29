@@ -6,9 +6,9 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**Milestone 1 — database and identity foundation complete.**
+**Milestone 2 — reference-data administration complete.**
 
-The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, explicit core-entity mappings, an initial migration, development seed data, and a MySQL integration test. Request workflow UI and APIs remain deferred to Milestone 3.
+The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, development seed data, and administrator-only department and request-type management. The Blazor administration screen and `/api/reference-data` endpoints share validation and persistence behavior. Service-request workflow UI and APIs remain deferred to Milestone 3.
 
 ## Technology
 
@@ -173,7 +173,7 @@ Development-only Requester, Technician, Manager, and Administrator accounts are 
 | Modular solution and Blazor host | Implemented in Milestone 0 |
 | Local MySQL infrastructure | Implemented in Milestone 0 |
 | Identity and demo users | Implemented in Milestone 1 |
-| Department and request-type administration | Planned for Milestone 2 |
+| Department and request-type administration | Implemented in Milestone 2 |
 | Service-request workflow and REST API | Planned for Milestone 3 |
 | Reporting view, stored procedure, and concurrency | Planned for Milestone 4 |
 | Production hardening and CI/CD | Planned for Milestones 5–6 |
@@ -190,10 +190,10 @@ Deployment-provider selection and production containerization are deferred to Mi
 
 ## Known limitations
 
-- Sign-in pages and role-specific UI are not yet implemented; Identity is configured for the upcoming workflows.
-- Authentication enforcement, authorization policies, APIs, and request behavior are not yet implemented.
+- The development sign-in screen is intentionally minimal and supports the seeded demo accounts only; account registration, password recovery, and production identity-provider integration are deferred.
+- Service-request behavior, assignment, audit, and role-specific request views are deferred to Milestone 3.
 - The Compose stack contains MySQL only; application containerization is deferred until the web/database integration is reliable.
-- Integration tests currently verify assembly and architecture foundations, not database behavior.
+- Integration tests cover initial MySQL migration/seed behavior and the reference-data create, list, and soft-deactivation workflow.
 
 ## License
 

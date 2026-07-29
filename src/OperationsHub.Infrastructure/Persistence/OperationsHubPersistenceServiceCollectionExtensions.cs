@@ -2,7 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
+using OperationsHub.Application.ReferenceData;
 using OperationsHub.Infrastructure.Identity;
+using OperationsHub.Infrastructure.ReferenceData;
 
 namespace OperationsHub.Infrastructure.Persistence;
 
@@ -26,6 +29,35 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
                 options.Password.RequireNonAlphanumeric = false;
             })
             .AddEntityFrameworkStores<OperationsHubDbContext>();
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/sign-in";
+            options.Events.OnRedirectToLogin = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            };
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            };
+        });
+
+        services.AddScoped<IReferenceDataStore, EntityFrameworkReferenceDataStore>();
 
         return services;
     }

@@ -9,8 +9,8 @@ public sealed class RequestType
     public RequestType(Guid id, string name, string? description, DateTimeOffset createdAtUtc)
     {
         Id = id;
-        Name = name;
-        Description = description;
+        Name = ValidateName(name);
+        Description = ValidateDescription(description);
         CreatedAtUtc = createdAtUtc;
         IsActive = true;
     }
@@ -24,4 +24,40 @@ public sealed class RequestType
     public bool IsActive { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
+
+    public void Update(string name, string? description)
+    {
+        Name = ValidateName(name);
+        Description = ValidateDescription(description);
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
+    }
+
+    private static string ValidateName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Request type name is required.", nameof(name));
+        }
+
+        if (name.Length > 100)
+        {
+            throw new ArgumentException("Request type name cannot exceed 100 characters.", nameof(name));
+        }
+
+        return name;
+    }
+
+    private static string? ValidateDescription(string? description)
+    {
+        if (description?.Length > 500)
+        {
+            throw new ArgumentException("Request type description cannot exceed 500 characters.", nameof(description));
+        }
+
+        return description;
+    }
 }

@@ -1,0 +1,279 @@
+@page "/administration/reference-data"
+@attribute [Authorize(Roles = "Administrator")]
+@inject IReferenceDataAdministrationService ReferenceDataService
+
+<PageTitle>Reference data administration</PageTitle>
+
+<div class="py-4">
+    <p class="text-uppercase text-primary fw-semibold mb-2">Administration</p>
+    <h1>Reference data</h1>
+    <p class="text-body-secondary col-lg-8">Manage the active departments and request types available to future service requests. Deactivated records stay visible here for historical context.</p>
+
+    @if (!string.IsNullOrWhiteSpace(statusMessage))
+    {
+        <div class="alert alert-success" role="status">@statusMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+
+    <div class="row g-4 mt-1">
+        <section class="col-xl-6" aria-labelledby="departments-heading">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 id="departments-heading" class="h4">Departments</h2>
+                    <EditForm Model="newDepartment" OnValidSubmit="CreateDepartmentAsync" class="row g-2 mb-4">
+                        <DataAnnotationsValidator />
+                        <div class="col-sm-8">
+                            <label class="form-label" for="department-name">Department name</label>
+                            <InputText id="department-name" class="form-control" @bind-Value="newDepartment.Name" maxlength="100" />
+                        </div>
+                        <div class="col-sm-4 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" type="submit">Add department</button>
+                        </div>
+                    </EditForm>
+
+                    @if (departments is null)
+                    {
+                        <p class="text-body-secondary">Loading departments…</p>
+                    }
+                    else if (departments.Count == 0)
+                    {
+                        <p class="text-body-secondary">No departments have been created.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead><tr><th scope="col">Name</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                                <tbody>
+                                    @foreach (var department in departments)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @if (editingDepartmentId == department.Id)
+                                                {
+                                                    <InputText class="form-control" @bind-Value="editingDepartmentName" maxlength="100" aria-label="Department name" />
+                                                }
+                                                else
+                                                {
+                                                    @department.Name
+                                                }
+                                            </td>
+                                            <td><span class="badge @(department.IsActive ? "text-bg-success" : "text-bg-secondary")">@(department.IsActive ? "Active" : "Inactive")</span></td>
+                                            <td class="text-end text-nowrap">
+                                                @if (editingDepartmentId == department.Id)
+                                                {
+                                                    <button class="btn btn-sm btn-primary me-1" @onclick="() => SaveDepartmentAsync(department.Id)">Save</button>
+                                                    <button class="btn btn-sm btn-outline-secondary" @onclick="CancelDepartmentEdit">Cancel</button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => StartDepartmentEdit(department)">Edit</button>
+                                                    @if (department.IsActive)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateDepartmentAsync(department.Id)">Deactivate</button>
+                                                    }
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <section class="col-xl-6" aria-labelledby="request-types-heading">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 id="request-types-heading" class="h4">Request types</h2>
+                    <EditForm Model="newRequestType" OnValidSubmit="CreateRequestTypeAsync" class="row g-2 mb-4">
+                        <DataAnnotationsValidator />
+                        <div class="col-12">
+                            <label class="form-label" for="request-type-name">Request type name</label>
+                            <InputText id="request-type-name" class="form-control" @bind-Value="newRequestType.Name" maxlength="100" />
+                        </div>
+                        <div class="col-sm-8">
+                            <label class="form-label" for="request-type-description">Description <span class="text-body-secondary">(optional)</span></label>
+                            <InputTextArea id="request-type-description" class="form-control" @bind-Value="newRequestType.Description" maxlength="500" rows="2" />
+                        </div>
+                        <div class="col-sm-4 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" type="submit">Add request type</button>
+                        </div>
+                    </EditForm>
+
+                    @if (requestTypes is null)
+                    {
+                        <p class="text-body-secondary">Loading request types…</p>
+                    }
+                    else if (requestTypes.Count == 0)
+                    {
+                        <p class="text-body-secondary">No request types have been created.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead><tr><th scope="col">Request type</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+                                <tbody>
+                                    @foreach (var requestType in requestTypes)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @if (editingRequestTypeId == requestType.Id)
+                                                {
+                                                    <InputText class="form-control mb-1" @bind-Value="editingRequestTypeName" maxlength="100" aria-label="Request type name" />
+                                                    <InputTextArea class="form-control" @bind-Value="editingRequestTypeDescription" maxlength="500" rows="2" aria-label="Request type description" />
+                                                }
+                                                else
+                                                {
+                                                    <strong>@requestType.Name</strong>
+                                                    @if (!string.IsNullOrWhiteSpace(requestType.Description))
+                                                    {
+                                                        <div class="small text-body-secondary">@requestType.Description</div>
+                                                    }
+                                                }
+                                            </td>
+                                            <td><span class="badge @(requestType.IsActive ? "text-bg-success" : "text-bg-secondary")">@(requestType.IsActive ? "Active" : "Inactive")</span></td>
+                                            <td class="text-end text-nowrap">
+                                                @if (editingRequestTypeId == requestType.Id)
+                                                {
+                                                    <button class="btn btn-sm btn-primary me-1" @onclick="() => SaveRequestTypeAsync(requestType.Id)">Save</button>
+                                                    <button class="btn btn-sm btn-outline-secondary" @onclick="CancelRequestTypeEdit">Cancel</button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => StartRequestTypeEdit(requestType)">Edit</button>
+                                                    @if (requestType.IsActive)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateRequestTypeAsync(requestType.Id)">Deactivate</button>
+                                                    }
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+@code {
+    private List<DepartmentDto>? departments;
+    private List<RequestTypeDto>? requestTypes;
+    private DepartmentInput newDepartment = new();
+    private RequestTypeInput newRequestType = new();
+    private Guid? editingDepartmentId;
+    private string? editingDepartmentName;
+    private Guid? editingRequestTypeId;
+    private string? editingRequestTypeName;
+    private string? editingRequestTypeDescription;
+    private string? statusMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task CreateDepartmentAsync()
+    {
+        await CompleteAsync(await ReferenceDataService.CreateDepartmentAsync(new(newDepartment.Name), CancellationToken.None), "Department added.");
+        newDepartment = new();
+    }
+
+    private async Task SaveDepartmentAsync(Guid id)
+    {
+        await CompleteAsync(await ReferenceDataService.UpdateDepartmentAsync(id, new(editingDepartmentName), CancellationToken.None), "Department updated.");
+    }
+
+    private async Task DeactivateDepartmentAsync(Guid id)
+    {
+        await CompleteAsync(await ReferenceDataService.DeactivateDepartmentAsync(id, CancellationToken.None), "Department deactivated.");
+    }
+
+    private async Task CreateRequestTypeAsync()
+    {
+        await CompleteAsync(await ReferenceDataService.CreateRequestTypeAsync(new(newRequestType.Name, newRequestType.Description), CancellationToken.None), "Request type added.");
+        newRequestType = new();
+    }
+
+    private async Task SaveRequestTypeAsync(Guid id)
+    {
+        await CompleteAsync(await ReferenceDataService.UpdateRequestTypeAsync(id, new(editingRequestTypeName, editingRequestTypeDescription), CancellationToken.None), "Request type updated.");
+    }
+
+    private async Task DeactivateRequestTypeAsync(Guid id)
+    {
+        await CompleteAsync(await ReferenceDataService.DeactivateRequestTypeAsync(id, CancellationToken.None), "Request type deactivated.");
+    }
+
+    private void StartDepartmentEdit(DepartmentDto department)
+    {
+        editingDepartmentId = department.Id;
+        editingDepartmentName = department.Name;
+    }
+
+    private void CancelDepartmentEdit()
+    {
+        editingDepartmentId = null;
+        editingDepartmentName = null;
+    }
+
+    private void StartRequestTypeEdit(RequestTypeDto requestType)
+    {
+        editingRequestTypeId = requestType.Id;
+        editingRequestTypeName = requestType.Name;
+        editingRequestTypeDescription = requestType.Description;
+    }
+
+    private void CancelRequestTypeEdit()
+    {
+        editingRequestTypeId = null;
+        editingRequestTypeName = null;
+        editingRequestTypeDescription = null;
+    }
+
+    private async Task CompleteAsync<T>(ReferenceDataOperationResult<T> result, string successMessage)
+    {
+        statusMessage = null;
+        errorMessage = null;
+        if (!result.Succeeded)
+        {
+            errorMessage = string.Join(" ", result.Errors.Values.SelectMany(errors => errors));
+            return;
+        }
+
+        CancelDepartmentEdit();
+        CancelRequestTypeEdit();
+        statusMessage = successMessage;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        departments = (await ReferenceDataService.GetDepartmentsAsync(false, CancellationToken.None)).ToList();
+        requestTypes = (await ReferenceDataService.GetRequestTypesAsync(false, CancellationToken.None)).ToList();
+    }
+
+    private sealed class DepartmentInput
+    {
+        public string? Name { get; set; }
+    }
+
+    private sealed class RequestTypeInput
+    {
+        public string? Name { get; set; }
+
+        public string? Description { get; set; }
+    }
+}

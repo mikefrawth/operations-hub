@@ -48,11 +48,21 @@ Exit gate passed:
 
 ## Milestone 2 — reference-data administration
 
+Status: **complete (2026-07-28)**
+
 - Department create, list, edit, and deactivate workflows
 - Request-type create, list, edit, and deactivate workflows
 - Administrator authorization and server-side validation
 - Blazor administration pages and API read endpoints
 - Unit and integration coverage
+
+Exit gate passed:
+
+- Administrator-only Blazor and API surfaces use the shared reference-data application service.
+- Department and request-type names are trimmed, required, capped at 100 characters, and unique across active and inactive records.
+- Request-type descriptions are optional and capped at 500 characters.
+- Deactivation preserves records for historical relationships and removes them from active-only queries.
+- Unit coverage verifies validation, duplicate rejection, and deactivation; the MySQL integration test verifies create, list, and deactivation inside a rolled-back transaction.
 
 ## Milestone 3 — service-request workflow
 
