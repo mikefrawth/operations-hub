@@ -48,17 +48,51 @@ See [docs/architecture.md](docs/architecture.md) and the records in [docs/decisi
 
 ## Local setup
 
+### 1. Initialize the repository and local environment
+
+Run these commands once when setting up a new development machine or WSL distribution:
+
 ```bash
-git clone <repository-url>
+git clone git@github.com:mikefrawth/operations-hub.git
 cd operations-hub
 cp .env.example .env
 docker compose up -d mysql
+docker compose ps
 ./eng/dotnet.sh restore
+```
+
+The copied `.env` file contains local-development settings and is ignored by Git. `docker compose ps` shows whether MySQL has reached a healthy state. Restore downloads the NuGet dependencies required by the solution.
+
+### 2. Build and run normally
+
+For a normal local startup after the one-time setup:
+
+```bash
+docker compose up -d mysql
 ./eng/dotnet.sh build --no-restore
 ./eng/dotnet.sh run --project src/OperationsHub.Web
 ```
 
-Open `http://localhost:5090`. The default development profile intentionally uses HTTP so it works cleanly across WSL and the Windows host browser. To use the HTTPS development profile, run:
+Open `http://localhost:5090`. Stop the application with <kbd>Ctrl</kbd>+<kbd>C</kbd>.
+
+Run `./eng/dotnet.sh restore` again after pulling changes that modify project files or NuGet dependencies. The `--no-restore` build option keeps the normal build fast by using dependencies that were already restored.
+
+### 3. Develop with automatic rebuilds
+
+Use `dotnet watch` while actively changing C# or Razor files:
+
+```bash
+docker compose up -d mysql
+./eng/dotnet.sh watch --project src/OperationsHub.Web
+```
+
+The watch process monitors supported source files, rebuilds the affected project, and refreshes or restarts the application when changes are detected. Keep it running during development and stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd>. Open `http://localhost:5090` after the application reports that it is listening.
+
+Run either the normal `run` command or the `watch` command at one time. Both use port `5090`, so the second process will report that the address is already in use.
+
+### Optional HTTPS profile
+
+The default development profile intentionally uses HTTP so it works cleanly across WSL and the Windows host browser. To use the HTTPS development profile, run:
 
 ```bash
 ./eng/dotnet.sh run --project src/OperationsHub.Web --launch-profile https
