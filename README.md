@@ -58,7 +58,13 @@ docker compose up -d mysql
 ./eng/dotnet.sh run --project src/OperationsHub.Web
 ```
 
-Open the HTTPS or HTTP URL printed by ASP.NET Core. The committed values in `.env.example` are isolated-development examples only.
+Open `http://localhost:5090`. The default development profile intentionally uses HTTP so it works cleanly across WSL and the Windows host browser. To use the HTTPS development profile, run:
+
+```bash
+./eng/dotnet.sh run --project src/OperationsHub.Web --launch-profile https
+```
+
+The HTTPS profile listens on `https://localhost:7090` and also exposes `http://localhost:5090`. The committed values in `.env.example` are isolated-development examples only.
 
 ## Docker
 
