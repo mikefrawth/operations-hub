@@ -6,6 +6,7 @@
 
 - Start implementing milestone 1
 - Make sure to update frontend web with updates to milestones.
+- When a push needs SSH authentication and `SSH_AUTH_SOCK` is empty, remind the author to run `eval "$(ssh-agent -s)"`, `ssh-add ~/.ssh/id_ed25519`, and `echo "$SSH_AUTH_SOCK"`, then provide the resulting socket path. Use that path only for the requested push and do not retain it.
 
 ## Git workflow
 
