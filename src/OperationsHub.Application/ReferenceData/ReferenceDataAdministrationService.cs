@@ -81,6 +81,19 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
         return ReferenceDataOperationResults.Success(Map(department));
     }
 
+    public async Task<ReferenceDataOperationResult<DepartmentDto>> ReactivateDepartmentAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var department = await store.FindDepartmentAsync(id, cancellationToken);
+        if (department is null)
+        {
+            return NotFound<DepartmentDto>();
+        }
+
+        department.Reactivate();
+        await store.SaveChangesAsync(cancellationToken);
+        return ReferenceDataOperationResults.Success(Map(department));
+    }
+
     public async Task<ReferenceDataOperationResult<RequestTypeDto>> CreateRequestTypeAsync(CreateRequestTypeCommand command, CancellationToken cancellationToken)
     {
         var name = ValidateName(command.Name, RequestType.NameMaximumLength);
@@ -145,6 +158,19 @@ public sealed class ReferenceDataAdministrationService : IReferenceDataAdministr
         }
 
         requestType.Deactivate();
+        await store.SaveChangesAsync(cancellationToken);
+        return ReferenceDataOperationResults.Success(Map(requestType));
+    }
+
+    public async Task<ReferenceDataOperationResult<RequestTypeDto>> ReactivateRequestTypeAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var requestType = await store.FindRequestTypeAsync(id, cancellationToken);
+        if (requestType is null)
+        {
+            return NotFound<RequestTypeDto>();
+        }
+
+        requestType.Reactivate();
         await store.SaveChangesAsync(cancellationToken);
         return ReferenceDataOperationResults.Success(Map(requestType));
     }

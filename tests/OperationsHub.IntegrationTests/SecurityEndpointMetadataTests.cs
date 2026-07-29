@@ -26,7 +26,7 @@ public sealed class SecurityEndpointMetadataTests
             .Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/api/reference-data", StringComparison.Ordinal))
             .ToList();
 
-        Assert.Equal(8, endpoints.Count);
+        Assert.Equal(10, endpoints.Count);
         Assert.All(
             endpoints,
             endpoint => Assert.Contains(
@@ -37,7 +37,7 @@ public sealed class SecurityEndpointMetadataTests
             .Where(endpoint => !endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods.Contains(HttpMethods.Get, StringComparer.Ordinal))
             .ToList();
 
-        Assert.Equal(6, mutationEndpoints.Count);
+        Assert.Equal(8, mutationEndpoints.Count);
         Assert.All(
             mutationEndpoints,
             endpoint => Assert.True(endpoint.Metadata.GetMetadata<IAntiforgeryMetadata>()?.RequiresValidation));

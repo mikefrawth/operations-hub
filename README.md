@@ -180,7 +180,8 @@ The reference-data API uses the same cookie authentication as the Blazor UI. Aft
 | Department and request-type administration | Implemented in Milestone 2 |
 | Service-request workflow and REST API | Implemented in Milestone 3 |
 | Reporting view, stored procedure, and concurrency | Implemented in Milestone 4 |
-| Production hardening and CI/CD | Planned for Milestones 5–6 |
+| Engineering hardening | In progress in Milestone 5 |
+| CI/CD | Planned for Milestone 6 |
 
 See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
 
@@ -195,9 +196,9 @@ Deployment-provider selection and production containerization are deferred to Mi
 ## Known limitations
 
 - The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and production identity-provider integration are deferred.
-- Assignment uses a stable Identity user ID until Milestone 5 adds a technician directory/picker experience.
-- Inactive departments and request types cannot yet be reactivated; the administrator restoration workflow is planned for Milestone 5.
-- Milestone 5 will add a seeded portfolio scenario and UI verification for populated service-request and open-request-summary views.
+- Managers and administrators can assign requests only to active technicians selected from the technician directory.
+- Development startup creates a deterministic open service request so the service-request and open-request-summary pages have populated-data coverage for local demonstrations.
+- The unauthenticated `/health` endpoint checks database connectivity. The host writes structured JSON logs and returns safe error responses through centralized exception handling.
 - The Compose stack contains MySQL only; application containerization is deferred until the web/database integration is reliable.
 - Integration tests cover migrations, Development-only identity initialization, security endpoint metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
 

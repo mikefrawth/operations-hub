@@ -64,6 +64,21 @@ public sealed class ReferenceDataAdministrationServiceTests
     }
 
     [Fact]
+    public async Task ReactivateRequestTypeAsyncRestoresAnInactiveRecord()
+    {
+        var store = new InMemoryReferenceDataStore();
+        var requestType = new RequestType(Guid.NewGuid(), "Access", null, DateTimeOffset.UtcNow);
+        requestType.Deactivate();
+        store.RequestTypes.Add(requestType);
+        var service = new ReferenceDataAdministrationService(store, TimeProvider.System);
+
+        var result = await service.ReactivateRequestTypeAsync(requestType.Id, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.True(requestType.IsActive);
+    }
+
+    [Fact]
     public void DepartmentRenameRejectsBlankName()
     {
         var department = new Department(Guid.NewGuid(), "Facilities", DateTimeOffset.UtcNow);

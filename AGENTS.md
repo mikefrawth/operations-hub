@@ -103,3 +103,10 @@ Do not claim a command is verified unless it completed successfully in the curre
 ## Definition of done
 
 A change is done only when intended UI/API behavior works, authorization and validation are enforced, persistence behavior is correct, relevant tests pass, the solution builds without warnings, documentation and applicable `AGENTS.md` files are accurate, secrets are absent, error cases were considered, and the implementation is explainable in a senior-engineering interview.
+
+## Codex sandbox execution
+
+- Use `./eng/dotnet.sh` for restore, build, and test commands. When `CODEX_CI` is present, the wrapper disables MSBuild build servers and forces one build node because the Codex sandbox does not reliably support MSBuild's default worker/server IPC.
+- Do not diagnose the resulting silent `Build FAILED` with zero errors as an SDK installation problem before retrying through the wrapper's sandbox-compatible path.
+- `dotnet test` and `dotnet format` require external execution in Codex because their test-host and Roslyn workspace processes use local sockets or named pipes that the sandbox blocks.
+- Request external execution only when a command needs network access, system package changes, Docker access, or another capability that remains unavailable after using the wrapper.

@@ -1,6 +1,7 @@
 @page "/requests/{Id:guid}"
 @attribute [Authorize]
 @inject IServiceRequestWorkflowService RequestService
+@inject ITechnicianDirectory TechnicianDirectory
 @inject IReferenceDataAdministrationService ReferenceDataService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -64,7 +65,7 @@ else
                     @if (CanAssign)
                     {
                         <hr />
-                        <EditForm Model="assignmentInput" OnValidSubmit="AssignAsync"><label class="form-label" for="assignee">Assignee user ID</label><InputText id="assignee" class="form-control mb-2" @bind-Value="assignmentInput.AssigneeId" maxlength="255" /><div class="form-text mb-2">Use the Identity user ID for the technician.</div><button class="btn btn-outline-primary" type="submit">Assign request</button></EditForm>
+                        <EditForm Model="assignmentInput" OnValidSubmit="AssignAsync"><label class="form-label" for="assignee">Assign technician</label><InputSelect id="assignee" class="form-select mb-2" @bind-Value="assignmentInput.AssigneeId"><option value="">Select a technician</option>@foreach (var technician in technicians) { <option value="@technician.Id">@technician.DisplayName (@technician.Email)</option> }</InputSelect><button class="btn btn-outline-primary" type="submit" disabled="@(technicians.Count == 0)">Assign request</button>@if (technicians.Count == 0) { <div class="form-text">No active technicians are available.</div> }</EditForm>
                     }
                 </div></div>
             </aside>
@@ -90,6 +91,7 @@ else
     private RequestActor? actor;
     private List<DepartmentDto> departments = [];
     private List<RequestTypeDto> requestTypes = [];
+    private List<TechnicianDto> technicians = [];
     private EditRequestInput editRequest = new();
     private StatusInput statusInput = new();
     private AssignmentInput assignmentInput = new();
@@ -105,6 +107,10 @@ else
         actor = await GetActorAsync();
         departments = (await ReferenceDataService.GetDepartmentsAsync(true, CancellationToken.None)).ToList();
         requestTypes = (await ReferenceDataService.GetRequestTypesAsync(true, CancellationToken.None)).ToList();
+        if (actor.Role is RequestActorRole.Manager or RequestActorRole.Administrator)
+        {
+            technicians = (await TechnicianDirectory.GetActiveTechniciansAsync(CancellationToken.None)).ToList();
+        }
         await LoadAsync();
     }
 

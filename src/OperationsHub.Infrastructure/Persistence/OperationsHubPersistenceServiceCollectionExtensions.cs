@@ -70,6 +70,7 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
 
         services.AddScoped<IReferenceDataStore, EntityFrameworkReferenceDataStore>();
         services.AddScoped<IServiceRequestStore, EntityFrameworkServiceRequestStore>();
+        services.AddScoped<ITechnicianDirectory, EntityFrameworkTechnicianDirectory>();
 
         return services;
     }
@@ -86,5 +87,6 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
         var database = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
         await database.Database.MigrateAsync();
         await DevelopmentIdentitySeeder.SeedAsync(scope.ServiceProvider);
+        await DevelopmentPortfolioScenarioSeeder.SeedAsync(database, CancellationToken.None);
     }
 }

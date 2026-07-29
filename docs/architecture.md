@@ -42,6 +42,8 @@ Owns DbContext, entity configurations, Identity persistence, migrations, MySQL-s
 
 Owns Blazor components, REST endpoints, authentication configuration, middleware, dependency injection, OpenAPI, and safe error handling. It translates transport concerns and delegates business operations to Application.
 
+The host writes structured JSON logs, uses centralized exception handling, returns RFC 7807 Problem Details for API failures, and exposes an anonymous `/health` endpoint backed by the EF Core database check.
+
 ## Rendering and UI
 
 The Blazor Web App uses global Interactive Server rendering. This provides a cohesive server-side security and data-access model for an internal tool while retaining an interactive component experience. The tradeoff is a live server circuit per connected user and a stronger requirement for connection resilience and server capacity.
@@ -59,6 +61,8 @@ Milestone 4 retains EF Core for ordinary request operations but demonstrates sel
 ASP.NET Core Identity provides Requester, Technician, Manager, and Administrator roles with an HTTP-only, same-site cookie. UI visibility improves usability, while the Web server boundary enforces administrative access. Cookie-authenticated mutation endpoints require antiforgery validation. Sign-in is throttled per remote IP, failed-password attempts lock eligible accounts, and unsafe return URLs are rejected. Public registration is not part of the initial plan.
 
 Fixed demo identities are a Development-only runtime concern. The current EF model seeds stable roles and reference data, but not users or password hashes. The remediation migration disables the historical demo identities for migration-only and non-development deployments; guarded Development startup restores the local demo password and role assignments.
+
+Managers and administrators select assignees from an Infrastructure-backed technician directory exposed through an Application contract. Assignment validation still checks the selected Identity user on the server before the transactional procedure runs.
 
 ## Data access
 

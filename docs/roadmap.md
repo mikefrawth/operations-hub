@@ -107,6 +107,8 @@ Exit gate passed:
 
 ## Milestone 5 — engineering hardening
 
+Status: **in progress (2026-07-29)**
+
 - Structured logging, centralized exception handling, Problem Details, and health checks
 - Security, accessibility, performance, and test-coverage review
 - Administrator reactivation workflows for inactive departments and request types, preserving the soft-deactivation audit/history model
