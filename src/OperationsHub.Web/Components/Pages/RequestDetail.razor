@@ -1,0 +1,148 @@
+@page "/requests/{Id:guid}"
+@attribute [Authorize]
+@inject IServiceRequestWorkflowService RequestService
+@inject IReferenceDataAdministrationService ReferenceDataService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Service request</PageTitle>
+
+@if (request is null && string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="py-4"><p class="text-body-secondary">Loading request…</p></div>
+}
+else if (request is null)
+{
+    <div class="py-4"><div class="alert alert-danger" role="alert">@errorMessage</div><a class="btn btn-outline-primary" href="requests">Return to requests</a></div>
+}
+else
+{
+    <div class="py-4">
+        <a href="requests" class="link-secondary">← Back to requests</a>
+        <p class="text-uppercase text-primary fw-semibold mb-2 mt-3">@request.RequestNumber</p>
+        <h1>@request.Title</h1>
+        <p class="text-body-secondary">Submitted @request.CreatedAtUtc.LocalDateTime.ToString("g") · @request.Status · @request.Priority priority</p>
+
+        @if (!string.IsNullOrWhiteSpace(statusMessage))
+        {
+            <div class="alert alert-success" role="status">@statusMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger" role="alert">@errorMessage</div>
+        }
+
+        <div class="row g-4">
+            <section class="col-lg-8" aria-labelledby="details-heading">
+                <div class="card shadow-sm h-100"><div class="card-body">
+                    <h2 id="details-heading" class="h4">Request details</h2>
+                    @if (CanEdit)
+                    {
+                        <EditForm Model="editRequest" OnValidSubmit="UpdateAsync" class="row g-3">
+                            <div class="col-md-8"><label class="form-label" for="title">Title</label><InputText id="title" class="form-control" @bind-Value="editRequest.Title" maxlength="200" /></div>
+                            <div class="col-md-4"><label class="form-label" for="priority">Priority</label><InputSelect id="priority" class="form-select" @bind-Value="editRequest.Priority">@foreach (var priority in Enum.GetValues<ServiceRequestPriority>()) { <option value="@priority">@priority</option> }</InputSelect></div>
+                            <div class="col-md-6"><label class="form-label" for="type">Request type</label><InputSelect id="type" class="form-select" @bind-Value="editRequest.RequestTypeId">@foreach (var type in requestTypes) { <option value="@type.Id">@type.Name</option> }</InputSelect></div>
+                            <div class="col-md-6"><label class="form-label" for="department">Department</label><InputSelect id="department" class="form-select" @bind-Value="editRequest.DepartmentId"><option value="">No department</option>@foreach (var department in departments) { <option value="@department.Id">@department.Name</option> }</InputSelect></div>
+                            <div class="col-12"><label class="form-label" for="description">Description</label><InputTextArea id="description" class="form-control" @bind-Value="editRequest.Description" maxlength="4000" rows="6" /></div>
+                            <div class="col-12"><button class="btn btn-primary" type="submit">Save changes</button></div>
+                        </EditForm>
+                    }
+                    else
+                    {
+                        <p class="mb-0 text-break">@request.Description</p>
+                    }
+                </div></div>
+            </section>
+            <aside class="col-lg-4">
+                <div class="card shadow-sm mb-4"><div class="card-body">
+                    <h2 class="h4">Workflow</h2>
+                    <dl class="mb-0"><dt>Requester</dt><dd class="text-break">@request.RequesterId</dd><dt>Assignee</dt><dd class="text-break">@(request.AssigneeId ?? "Unassigned")</dd><dt>Status</dt><dd>@request.Status</dd></dl>
+                    @if (CanManage)
+                    {
+                        <hr />
+                        <EditForm Model="statusInput" OnValidSubmit="ChangeStatusAsync"><label class="form-label" for="status">Change status</label><InputSelect id="status" class="form-select mb-2" @bind-Value="statusInput.Status">@foreach (var status in Enum.GetValues<ServiceRequestStatus>()) { <option value="@status">@status</option> }</InputSelect><button class="btn btn-outline-primary" type="submit">Update status</button></EditForm>
+                    }
+                    @if (CanAssign)
+                    {
+                        <hr />
+                        <EditForm Model="assignmentInput" OnValidSubmit="AssignAsync"><label class="form-label" for="assignee">Assignee user ID</label><InputText id="assignee" class="form-control mb-2" @bind-Value="assignmentInput.AssigneeId" maxlength="255" /><div class="form-text mb-2">Use the Identity user ID for the technician.</div><button class="btn btn-outline-primary" type="submit">Assign request</button></EditForm>
+                    }
+                </div></div>
+            </aside>
+        </div>
+
+        <div class="row g-4 mt-1">
+            <section class="col-lg-6" aria-labelledby="comments-heading"><div class="card shadow-sm h-100"><div class="card-body"><h2 id="comments-heading" class="h4">Comments</h2>
+                @if (request.Comments.Count == 0) { <p class="text-body-secondary">No comments yet.</p> } else { @foreach (var comment in request.Comments) { <article class="border-bottom py-2"><div class="small text-body-secondary">@comment.AuthorId · @comment.CreatedAtUtc.LocalDateTime.ToString("g")</div><div class="text-break">@comment.Body</div></article> } }
+                <EditForm Model="commentInput" OnValidSubmit="AddCommentAsync" class="mt-3"><label class="form-label" for="comment">Add a comment</label><InputTextArea id="comment" class="form-control mb-2" @bind-Value="commentInput.Body" maxlength="4000" rows="3" /><button class="btn btn-primary" type="submit">Add comment</button></EditForm>
+            </div></div></section>
+            <section class="col-lg-6" aria-labelledby="history-heading"><div class="card shadow-sm h-100"><div class="card-body"><h2 id="history-heading" class="h4">History</h2>
+                <h3 class="h6">Status changes</h3><ul class="list-unstyled">@foreach (var history in request.StatusHistory) { <li class="mb-2"><strong>@history.Status</strong><br /><span class="small text-body-secondary">@history.ChangedById · @history.ChangedAtUtc.LocalDateTime.ToString("g")</span></li> }</ul>
+                <h3 class="h6">Assignments</h3><ul class="list-unstyled mb-0">@if (request.Assignments.Count == 0) { <li class="text-body-secondary">No assignments yet.</li> } else { @foreach (var assignment in request.Assignments) { <li class="mb-2"><strong>@assignment.AssigneeId</strong><br /><span class="small text-body-secondary">Assigned by @assignment.AssignedById · @assignment.AssignedAtUtc.LocalDateTime.ToString("g")</span></li> } }</ul>
+            </div></div></section>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ServiceRequestDetailDto? request;
+    private RequestActor? actor;
+    private List<DepartmentDto> departments = [];
+    private List<RequestTypeDto> requestTypes = [];
+    private EditRequestInput editRequest = new();
+    private StatusInput statusInput = new();
+    private AssignmentInput assignmentInput = new();
+    private CommentInput commentInput = new();
+    private string? errorMessage;
+    private string? statusMessage;
+    private bool CanEdit => actor?.Role == RequestActorRole.Requester && request?.RequesterId == actor.UserId;
+    private bool CanManage => actor?.Role is RequestActorRole.Manager or RequestActorRole.Administrator || actor?.Role == RequestActorRole.Technician && request?.AssigneeId == actor.UserId;
+    private bool CanAssign => actor?.Role is RequestActorRole.Manager or RequestActorRole.Administrator;
+
+    protected override async Task OnInitializedAsync()
+    {
+        actor = await GetActorAsync();
+        departments = (await ReferenceDataService.GetDepartmentsAsync(true, CancellationToken.None)).ToList();
+        requestTypes = (await ReferenceDataService.GetRequestTypesAsync(true, CancellationToken.None)).ToList();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var result = await RequestService.GetAsync(actor!, Id, CancellationToken.None);
+        if (!result.Succeeded) { errorMessage = result.Status == RequestOperationStatus.Forbidden ? "You do not have permission to view this request." : "The request could not be found."; return; }
+        request = result.Value;
+        editRequest = new() { Title = request!.Title, Description = request.Description, RequestTypeId = request.RequestTypeId, DepartmentId = request.DepartmentId, Priority = request.Priority };
+        statusInput = new() { Status = request.Status };
+        assignmentInput = new() { AssigneeId = request.AssigneeId };
+    }
+
+    private async Task UpdateAsync() => await CompleteAsync(await RequestService.UpdateAsync(actor!, Id, new(editRequest.Title, editRequest.Description, editRequest.RequestTypeId, editRequest.Priority, editRequest.DepartmentId), CancellationToken.None), "Request updated.");
+    private async Task AssignAsync() => await CompleteAsync(await RequestService.AssignAsync(actor!, Id, new(assignmentInput.AssigneeId), CancellationToken.None), "Request assigned.");
+    private async Task ChangeStatusAsync() => await CompleteAsync(await RequestService.ChangeStatusAsync(actor!, Id, new(statusInput.Status), CancellationToken.None), "Status updated.");
+    private async Task AddCommentAsync()
+    {
+        await CompleteAsync(await RequestService.AddCommentAsync(actor!, Id, new(commentInput.Body), CancellationToken.None), "Comment added.");
+        commentInput = new();
+    }
+
+    private async Task CompleteAsync(RequestOperationResult<ServiceRequestDetailDto> result, string message)
+    {
+        errorMessage = null; statusMessage = null;
+        if (!result.Succeeded) { errorMessage = string.Join(" ", result.Errors.Values.SelectMany(errors => errors)); return; }
+        statusMessage = message;
+        await LoadAsync();
+    }
+
+    private async Task<RequestActor> GetActorAsync()
+    {
+        var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        return new RequestActor(principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."), principal.IsInRole("Administrator") ? RequestActorRole.Administrator : principal.IsInRole("Manager") ? RequestActorRole.Manager : principal.IsInRole("Technician") ? RequestActorRole.Technician : RequestActorRole.Requester);
+    }
+
+    private sealed class EditRequestInput { public string? Title { get; set; } public string? Description { get; set; } public Guid RequestTypeId { get; set; } public Guid? DepartmentId { get; set; } public ServiceRequestPriority Priority { get; set; } }
+    private sealed class StatusInput { public ServiceRequestStatus Status { get; set; } }
+    private sealed class AssignmentInput { public string? AssigneeId { get; set; } }
+    private sealed class CommentInput { public string? Body { get; set; } }
+}

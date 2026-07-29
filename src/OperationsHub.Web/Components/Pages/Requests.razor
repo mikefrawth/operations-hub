@@ -1,7 +1,9 @@
 @page "/requests"
 @attribute [Authorize]
 @inject IServiceRequestWorkflowService RequestService
+@inject IReferenceDataAdministrationService ReferenceDataService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
 
 <PageTitle>Service requests</PageTitle>
 
@@ -10,52 +12,151 @@
     <h1>Service requests</h1>
     <p class="text-body-secondary">@viewDescription</p>
 
-    @if (requests is null)
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
     {
-        <p class="text-body-secondary">Loading requests…</p>
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
     }
-    else if (requests.Count == 0)
+
+    @if (actor?.Role == RequestActorRole.Requester)
     {
-        <p class="text-body-secondary">No service requests match this view.</p>
+        <section class="card shadow-sm mb-4" aria-labelledby="new-request-heading">
+            <div class="card-body">
+                <h2 id="new-request-heading" class="h4">Submit a request</h2>
+                <EditForm Model="newRequest" OnValidSubmit="CreateAsync" class="row g-3">
+                    <DataAnnotationsValidator />
+                    <div class="col-md-8">
+                        <label class="form-label" for="request-title">Title</label>
+                        <InputText id="request-title" class="form-control" @bind-Value="newRequest.Title" maxlength="200" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="request-priority">Priority</label>
+                        <InputSelect id="request-priority" class="form-select" @bind-Value="newRequest.Priority">
+                            @foreach (var priority in Enum.GetValues<ServiceRequestPriority>())
+                            {
+                                <option value="@priority">@priority</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="request-type">Request type</label>
+                        <InputSelect id="request-type" class="form-select" @bind-Value="newRequest.RequestTypeId">
+                            <option value="@Guid.Empty">Select a request type</option>
+                            @foreach (var requestType in requestTypes)
+                            {
+                                <option value="@requestType.Id">@requestType.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="request-department">Department <span class="text-body-secondary">(optional)</span></label>
+                        <InputSelect id="request-department" class="form-select" @bind-Value="newRequest.DepartmentId">
+                            <option value="">No department</option>
+                            @foreach (var department in departments)
+                            {
+                                <option value="@department.Id">@department.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="request-description">Description</label>
+                        <InputTextArea id="request-description" class="form-control" @bind-Value="newRequest.Description" maxlength="4000" rows="4" />
+                    </div>
+                    <div class="col-12"><button class="btn btn-primary" type="submit">Submit request</button></div>
+                </EditForm>
+            </div>
+        </section>
     }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table align-middle">
-                <thead><tr><th scope="col">Number</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Updated</th></tr></thead>
-                <tbody>
-                    @foreach (var request in requests)
-                    {
-                        <tr>
-                            <td>@request.RequestNumber</td>
-                            <td>@request.Title</td>
-                            <td>@request.Status</td>
-                            <td>@request.Priority</td>
-                            <td>@request.UpdatedAtUtc.LocalDateTime.ToString("g")</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
+
+    <section aria-labelledby="request-list-heading">
+        <h2 id="request-list-heading" class="h3">@listHeading</h2>
+        @if (requests is null)
+        {
+            <p class="text-body-secondary">Loading requests…</p>
+        }
+        else if (requests.Count == 0)
+        {
+            <p class="text-body-secondary">No service requests match this view.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th scope="col">Number</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Updated</th></tr></thead>
+                    <tbody>
+                        @foreach (var request in requests)
+                        {
+                            <tr>
+                                <td><a href="@($"requests/{request.Id}")">@request.RequestNumber</a></td>
+                                <td>@request.Title</td>
+                                <td>@request.Status</td>
+                                <td>@request.Priority</td>
+                                <td>@request.UpdatedAtUtc.LocalDateTime.ToString("g")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
 </div>
 
 @code {
     private List<ServiceRequestListItemDto>? requests;
+    private List<DepartmentDto> departments = [];
+    private List<RequestTypeDto> requestTypes = [];
+    private RequestActor? actor;
+    private RequestInput newRequest = new();
     private string viewDescription = "Your permitted service-request view.";
+    private string listHeading = "Requests";
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
+        actor = await GetActorAsync();
+        (viewDescription, listHeading) = actor.Role switch
+        {
+            RequestActorRole.Requester => ("Requests you submitted. Use the form below to submit a new request.", "Your requests"),
+            RequestActorRole.Technician => ("Requests currently assigned to you.", "Your assigned requests"),
+            _ => ("All service requests across OperationsHub.", "All requests"),
+        };
+        if (actor.Role == RequestActorRole.Requester)
+        {
+            departments = (await ReferenceDataService.GetDepartmentsAsync(true, CancellationToken.None)).ToList();
+            requestTypes = (await ReferenceDataService.GetRequestTypesAsync(true, CancellationToken.None)).ToList();
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        errorMessage = null;
+        var result = await RequestService.CreateAsync(actor!, new(newRequest.Title, newRequest.Description, newRequest.RequestTypeId, newRequest.Priority, newRequest.DepartmentId), CancellationToken.None);
+        if (!result.Succeeded)
+        {
+            errorMessage = string.Join(" ", result.Errors.Values.SelectMany(errors => errors));
+            return;
+        }
+
+        Navigation.NavigateTo($"requests/{result.Value!.Id}");
+    }
+
+    private async Task LoadAsync() => requests = (await RequestService.SearchAsync(actor!, new ServiceRequestSearchQuery(), CancellationToken.None)).Items.ToList();
+
+    private async Task<RequestActor> GetActorAsync()
+    {
         var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
-        var actor = new RequestActor(
+        return new RequestActor(
             principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."),
             principal.IsInRole("Administrator") ? RequestActorRole.Administrator : principal.IsInRole("Manager") ? RequestActorRole.Manager : principal.IsInRole("Technician") ? RequestActorRole.Technician : RequestActorRole.Requester);
-        viewDescription = actor.Role switch
-        {
-            RequestActorRole.Requester => "Requests you submitted.",
-            RequestActorRole.Technician => "Requests currently assigned to you.",
-            _ => "All service requests across OperationsHub.",
-        };
-        requests = (await RequestService.SearchAsync(actor, new ServiceRequestSearchQuery(), CancellationToken.None)).Items.ToList();
+    }
+
+    private sealed class RequestInput
+    {
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public Guid RequestTypeId { get; set; }
+        public ServiceRequestPriority Priority { get; set; } = ServiceRequestPriority.Normal;
+        public Guid? DepartmentId { get; set; }
     }
 }
