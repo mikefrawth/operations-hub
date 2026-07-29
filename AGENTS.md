@@ -4,10 +4,8 @@
 
 ### Only the author can edit Instructions section
 
-- Add to AGENTS.md: For each new feature, create a new git branch. 
-- Add to AGENTS.md: Branch naming convention is as follows: "xxxx-[branch-name]", where x are numbers. The starting branch should be "0001".
-- Add to AGENTS.md: You have permission to do git add and git commit. For pushing, I'm using WSL ssh key. If you encounter an error, as for an ssh auth sock. When you are able to push, remove the sock. if this instruction confuses you, ask me for clarification.
-- Commit all milestone 0 to a new branch called "foundation" following the git naming conventions
+- Start implementing milestone 1
+- Make sure to update frontend web with updates to milestones.
 
 ## Git workflow
 
