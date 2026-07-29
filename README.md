@@ -6,9 +6,9 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**Milestone 0 — repository foundation complete.**
+**Milestone 1 — database and identity foundation complete.**
 
-The solution structure, project boundaries, Blazor host, repository policy, MySQL development container, smoke tests, and foundational documentation are present. Database connectivity, Identity, entities, migrations, and demo users are intentionally deferred to Milestone 1.
+The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, explicit core-entity mappings, an initial migration, development seed data, and a MySQL integration test. Request workflow UI and APIs remain deferred to Milestone 3.
 
 ## Technology
 
@@ -151,23 +151,20 @@ The build completed with zero warnings and errors, all four tests passed, format
 
 ## Database migrations and seed data
 
-Database integration begins in Milestone 1. The planned commands, after the EF Core tool and DbContext are added, are:
+Restore the repository-pinned EF tool, then apply the initial migration:
 
 ```bash
-./eng/dotnet.sh ef migrations add <MigrationName> \
-  --project src/OperationsHub.Infrastructure \
-  --startup-project src/OperationsHub.Web \
-  --output-dir Persistence/Migrations
-./eng/dotnet.sh ef database update \
+./eng/dotnet.sh tool restore
+./eng/dotnet.sh tool run dotnet-ef database update \
   --project src/OperationsHub.Infrastructure \
   --startup-project src/OperationsHub.Web
 ```
 
-These commands are documented as planned and are not yet available in Milestone 0.
+See [docs/database.md](docs/database.md) for the schema, ER diagram, seed data, and future migration command.
 
 ## Demo accounts
 
-No accounts exist in Milestone 0. Development-only Requester, Technician, Manager, and Administrator accounts will be seeded and documented in Milestone 1. Their credentials will never be suitable for production.
+Development-only Requester, Technician, Manager, and Administrator accounts are seeded with password `OperationsHub!2026`. See [docs/database.md](docs/database.md) for their email addresses. These credentials will never be suitable for production.
 
 ## Feature status
 
@@ -175,7 +172,7 @@ No accounts exist in Milestone 0. Development-only Requester, Technician, Manage
 | --- | --- |
 | Modular solution and Blazor host | Implemented in Milestone 0 |
 | Local MySQL infrastructure | Implemented in Milestone 0 |
-| Identity and demo users | Planned for Milestone 1 |
+| Identity and demo users | Implemented in Milestone 1 |
 | Department and request-type administration | Planned for Milestone 2 |
 | Service-request workflow and REST API | Planned for Milestone 3 |
 | Reporting view, stored procedure, and concurrency | Planned for Milestone 4 |
@@ -193,8 +190,8 @@ Deployment-provider selection and production containerization are deferred to Mi
 
 ## Known limitations
 
-- The web application does not yet connect to MySQL.
-- Authentication, authorization, APIs, business entities, migrations, and seed data are not yet implemented.
+- Sign-in pages and role-specific UI are not yet implemented; Identity is configured for the upcoming workflows.
+- Authentication enforcement, authorization policies, APIs, and request behavior are not yet implemented.
 - The Compose stack contains MySQL only; application containerization is deferred until the web/database integration is reliable.
 - Integration tests currently verify assembly and architecture foundations, not database behavior.
 

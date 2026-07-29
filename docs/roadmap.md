@@ -29,6 +29,8 @@ Exit gate passed:
 
 ## Milestone 1 — database and identity foundation
 
+Status: **complete (2026-07-28)**
+
 - MySQL connectivity and EF Core DbContext
 - ASP.NET Core Identity
 - Core entities and explicit entity configurations
@@ -36,6 +38,13 @@ Exit gate passed:
 - Requester, Technician, Manager, and Administrator demo users
 - Synchronized Mermaid ER diagram and expanded database documentation
 - MySQL migration/connectivity integration test
+
+Exit gate passed:
+
+- EF Core 10, ASP.NET Core Identity, and MySQL Connector/NET were restored.
+- The initial migration was generated and reviewed against MySQL 8.4.
+- The migration applied successfully to the local Compose database with seeded roles, users, departments, and request types.
+- The model has no pending changes after migration generation.
 
 ## Milestone 2 — reference-data administration
 
