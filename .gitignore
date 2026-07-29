@@ -1,0 +1,36 @@
+# Repository-local toolchains and caches
+.dotnet/
+.dotnet-cli-home/
+.nuget/
+
+# Build outputs
+**/bin/
+**/obj/
+
+# Local configuration and secrets
+.env
+*.user
+*.suo
+secrets.json
+
+# IDE and editor state
+.idea/
+.vs/
+.vscode/
+*.userprefs
+
+# Test and coverage output
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db
+
+# Local database and container artifacts
+mysql-data/
+
+.fake
