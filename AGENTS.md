@@ -4,17 +4,12 @@
 
 ### Only the author can edit Instructions section
 
-- Start implementing milestone 1
-- Make sure to update frontend web with updates to milestones.
-- For every requested GitHub push, set `SSH_AUTH_SOCK` to the author-provided active SSH-agent socket for that push. If no socket path is available, remind the author to run `eval "$(ssh-agent -s)"`, `ssh-add ~/.ssh/id_ed25519`, and `echo "$SSH_AUTH_SOCK"`, then ask for the resulting socket path. Use it only for the requested push, then unset `SSH_AUTH_SOCK`; never retain the path or delete the agent-owned socket file.
-
 ## Git workflow
 
 - Create a new branch before implementing each new feature.
 - Name feature branches `xxxx-[branch-name]`, where `xxxx` is a sequential four-digit number beginning with `0001`. The Milestone 0 branch is `0001-foundation`.
 - Git staging and commits are authorized when they are part of the requested work. Inspect the worktree and staged diff before committing; do not include unrelated changes.
-- When a push is requested and a GitHub remote exists, run it from the Fedora WSL environment and use an SSH remote such as `git@github.com:<owner>/<repository>.git`, not an HTTPS credential flow.
-- If SSH requires a temporary agent socket, ask the author for the `SSH_AUTH_SOCK` value, use it only for the push, and unset the temporary environment variable afterward. Never delete the agent-owned socket file.
+- For local GitHub deployment instructions, including the author-specific SSH workflow, refer to `LOCAL_GITHUB_DEPLOYMENT.md`. This intentionally gitignored file must never be committed or pushed.
 
 ## Scope and purpose
 

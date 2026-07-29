@@ -9,6 +9,7 @@
 
 # Local configuration and secrets
 .env
+LOCAL_GITHUB_DEPLOYMENT.md
 *.user
 *.suo
 secrets.json
