@@ -6,7 +6,7 @@
 
 - Start implementing milestone 1
 - Make sure to update frontend web with updates to milestones.
-- When a push needs SSH authentication and `SSH_AUTH_SOCK` is empty, remind the author to run `eval "$(ssh-agent -s)"`, `ssh-add ~/.ssh/id_ed25519`, and `echo "$SSH_AUTH_SOCK"`, then provide the resulting socket path. Use that path only for the requested push and do not retain it.
+- For every requested GitHub push, set `SSH_AUTH_SOCK` to the author-provided active SSH-agent socket for that push. If no socket path is available, remind the author to run `eval "$(ssh-agent -s)"`, `ssh-add ~/.ssh/id_ed25519`, and `echo "$SSH_AUTH_SOCK"`, then ask for the resulting socket path. Use it only for the requested push, then unset `SSH_AUTH_SOCK`; never retain the path or delete the agent-owned socket file.
 
 ## Git workflow
 
