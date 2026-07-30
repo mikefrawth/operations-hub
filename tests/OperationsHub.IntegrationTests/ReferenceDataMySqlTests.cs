@@ -11,7 +11,7 @@ public sealed class ReferenceDataMySqlTests
     public async Task ReferenceDataServiceCreatesListsAndDeactivatesRecordsAgainstMySql()
     {
         var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
-            ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only";
+            ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled";
         var options = new DbContextOptionsBuilder<OperationsHubDbContext>()
             .UseMySQL(connectionString)
             .Options;

@@ -6,6 +6,6 @@ This directory contains production code. Preserve the dependency direction `Web 
 - Keep each type focused and prefer feature-oriented subfolders within each layer.
 - Do not share code by adding reverse or cyclic project references.
 - Do not add cross-cutting abstractions until at least two concrete consumers demonstrate the need.
-- Run `./eng/dotnet.sh build --no-restore` after source changes and the relevant test projects before declaring completion.
+- Run `.\eng\dotnet.cmd build --no-restore` after source changes and the relevant test projects before declaring completion in native Windows/PowerShell environments.
 
 Read the project-specific `AGENTS.md` before editing a project.

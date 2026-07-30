@@ -6,6 +6,7 @@
 
 - When working on any milestone, make sure to update the web frontend as well.
 - Request only narrowly scoped sandbox escalations with a clear justification. Never request unrestricted shell access when a command-specific permission or safe alternative is available.
+- Before choosing a sequential branch number, check both local and remote branches to confirm the next available number.
 
 ## Git workflow
 
@@ -34,13 +35,15 @@ Read this file and the nearest `AGENTS.md` that applies before editing. More-loc
 
 The wrapper uses the repository-local SDK when present and otherwise delegates to `dotnet` on `PATH`.
 
-```bash
-./eng/dotnet.sh restore
-./eng/dotnet.sh build --no-restore
-./eng/dotnet.sh test --no-build
-./eng/dotnet.sh format --verify-no-changes --no-restore
-./eng/dotnet.sh run --project src/OperationsHub.Web
+```powershell
+.\eng\dotnet.cmd restore
+.\eng\dotnet.cmd build --no-restore
+.\eng\dotnet.cmd test --no-build
+.\eng\dotnet.cmd format --verify-no-changes --no-restore
+.\eng\dotnet.cmd run --project src/OperationsHub.Web
 ```
+
+Use `./eng/dotnet.sh` with the same arguments on Linux, macOS, or WSL.
 
 Local infrastructure:
 
@@ -54,13 +57,13 @@ docker compose down --volumes
 
 EF Core tooling and migrations begin in Milestone 1. Once configured, use:
 
-```bash
-./eng/dotnet.sh ef migrations add <MigrationName> \
-  --project src/OperationsHub.Infrastructure \
-  --startup-project src/OperationsHub.Web \
+```powershell
+.\eng\dotnet.cmd ef migrations add <MigrationName> `
+  --project src/OperationsHub.Infrastructure `
+  --startup-project src/OperationsHub.Web `
   --output-dir Persistence/Migrations
-./eng/dotnet.sh ef database update \
-  --project src/OperationsHub.Infrastructure \
+.\eng\dotnet.cmd ef database update `
+  --project src/OperationsHub.Infrastructure `
   --startup-project src/OperationsHub.Web
 ```
 
@@ -106,7 +109,8 @@ A change is done only when intended UI/API behavior works, authorization and val
 
 ## Codex sandbox execution
 
-- Use `./eng/dotnet.sh` for restore, build, and test commands. When `CODEX_CI` is present, the wrapper disables MSBuild build servers and forces one build node because the Codex sandbox does not reliably support MSBuild's default worker/server IPC.
+- Use `.\eng\dotnet.cmd` for restore, build, test, format, and run commands in native Windows/PowerShell environments; it invokes the repository PowerShell wrapper with a process-scoped execution-policy bypass. Use `./eng/dotnet.sh` in Bash environments. The PowerShell wrapper normalizes duplicate `Path`/`PATH` process variables and both wrappers use repository-local CLI/package directories and `NuGet.Config`.
+- In Codex (`CODEX_CI` or `CODEX_THREAD_ID` present), the wrappers disable MSBuild build servers and force one build node because the sandbox does not reliably support MSBuild's default worker/server IPC.
 - Do not diagnose the resulting silent `Build FAILED` with zero errors as an SDK installation problem before retrying through the wrapper's sandbox-compatible path.
-- `dotnet test` and `dotnet format` require external execution in Codex because their test-host and Roslyn workspace processes use local sockets or named pipes that the sandbox blocks.
+- Run `dotnet test` and `dotnet format` through the wrapper inside the sandbox first; the Windows-native wrapper and local development settings are configured for sandbox compatibility.
 - Request external execution only when a command needs network access, system package changes, Docker access, or another capability that remains unavailable after using the wrapper.

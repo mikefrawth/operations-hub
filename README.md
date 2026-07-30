@@ -44,46 +44,46 @@ See [docs/architecture.md](docs/architecture.md) and the records in [docs/decisi
 - Docker Engine with the Compose plugin
 - Git
 
-`eng/dotnet.sh` uses a repository-local `.dotnet` SDK when one exists; otherwise it delegates to `dotnet` on `PATH`.
+Use `eng\dotnet.cmd` from native Windows PowerShell and `eng/dotnet.sh` from Bash. The Windows entry point invokes `eng\dotnet.ps1` with a process-scoped execution-policy bypass, so it works without changing machine or user policy. Each wrapper uses the platform-appropriate repository-local `.dotnet` SDK when one exists and otherwise delegates to `dotnet` on `PATH`. Both wrappers isolate CLI/package caches inside the repository and use the committed `NuGet.Config`; the PowerShell wrapper also normalizes duplicate `Path`/`PATH` variables that some sandboxed Windows environments provide.
 
 ## Local setup
 
 ### 1. Initialize the repository and local environment
 
-Run these commands once when setting up a new development machine or WSL distribution:
+Run these commands once when setting up a native Windows development machine:
 
-```bash
+```powershell
 git clone git@github.com:mikefrawth/operations-hub.git
 cd operations-hub
-cp .env.example .env
+Copy-Item .env.example .env
 docker compose up -d mysql
 docker compose ps
-./eng/dotnet.sh restore
+.\eng\dotnet.cmd restore
 ```
 
-The copied `.env` file contains local-development settings for Docker Compose and is ignored by Git. The web host's committed Development connection string matches the example defaults. If you change the database user, password, port, or database name in `.env`, also provide a matching `ConnectionStrings__OperationsHub` environment variable when running the web host. `docker compose ps` shows whether MySQL has reached a healthy state. Restore downloads the NuGet dependencies required by the solution.
+The copied `.env` file contains local-development settings for Docker Compose and is ignored by Git. The web host's committed Development connection string matches the example defaults and disables TLS only for the loopback Docker connection. If you change the database user, password, port, or database name in `.env`, also provide a matching `ConnectionStrings__OperationsHub` environment variable when running the web host. `docker compose ps` shows whether MySQL has reached a healthy state. Restore downloads the NuGet dependencies required by the solution.
 
 ### 2. Build and run normally
 
 For a normal local startup after the one-time setup:
 
-```bash
+```powershell
 docker compose up -d mysql
-./eng/dotnet.sh build --no-restore
-./eng/dotnet.sh run --project src/OperationsHub.Web
+.\eng\dotnet.cmd build --no-restore
+.\eng\dotnet.cmd run --project src/OperationsHub.Web
 ```
 
 Open `http://localhost:5090`. Stop the application with <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
-Run `./eng/dotnet.sh restore` again after pulling changes that modify project files or NuGet dependencies. The `--no-restore` build option keeps the normal build fast by using dependencies that were already restored.
+Run `.\eng\dotnet.cmd restore` again after pulling changes that modify project files or NuGet dependencies. The `--no-restore` build option keeps the normal build fast by using dependencies that were already restored.
 
 ### 3. Develop with automatic rebuilds
 
 Use `dotnet watch` while actively changing C# or Razor files:
 
-```bash
+```powershell
 docker compose up -d mysql
-./eng/dotnet.sh watch --project src/OperationsHub.Web
+.\eng\dotnet.cmd watch --project src/OperationsHub.Web
 ```
 
 The watch process monitors supported source files, rebuilds the affected project, and refreshes or restarts the application when changes are detected. Keep it running during development and stop it with <kbd>Ctrl</kbd>+<kbd>C</kbd>. Open `http://localhost:5090` after the application reports that it is listening.
@@ -94,8 +94,8 @@ Run either the normal `run` command or the `watch` command at one time. Both use
 
 The default development profile intentionally uses HTTP so it works cleanly across WSL and the Windows host browser. To use the HTTPS development profile, run:
 
-```bash
-./eng/dotnet.sh run --project src/OperationsHub.Web --launch-profile https
+```powershell
+.\eng\dotnet.cmd run --project src/OperationsHub.Web --launch-profile https
 ```
 
 The HTTPS profile listens on `https://localhost:7090` and also exposes `http://localhost:5090`. The committed values in `.env.example` are isolated-development examples only.
@@ -122,41 +122,41 @@ This reset is destructive and intended only for disposable local development dat
 
 ## Build, test, and format
 
-```bash
-./eng/dotnet.sh restore
-./eng/dotnet.sh build --no-restore
-./eng/dotnet.sh test --no-build
-./eng/dotnet.sh format --verify-no-changes --no-restore
+```powershell
+.\eng\dotnet.cmd restore
+.\eng\dotnet.cmd build --no-restore
+.\eng\dotnet.cmd test --no-build
+.\eng\dotnet.cmd format --verify-no-changes --no-restore
 ```
 
 Warnings and recommended analyzer findings fail the build.
 
-### Verified Milestone 2 review commands
+On Linux, macOS, or WSL, replace `.\eng\dotnet.cmd` with `./eng/dotnet.sh`.
 
-The following commands completed successfully on Fedora 44 under WSL on 2026-07-29. Single-process build flags were used because the execution sandbox restricts some local MSBuild process communication; they are safe but generally unnecessary on a normal workstation.
+### Verified Windows-native commands
 
-```bash
-./eng/dotnet.sh restore OperationsHub.sln --disable-parallel -m:1 --verbosity minimal
-./eng/dotnet.sh build OperationsHub.sln --no-restore --disable-build-servers \
-  -p:BuildInParallel=false -p:UseSharedCompilation=false -m:1 --verbosity minimal
-./eng/dotnet.sh test OperationsHub.sln --no-build --no-restore --disable-build-servers \
-  -p:BuildInParallel=false -p:UseSharedCompilation=false -m:1 --verbosity minimal
-./eng/dotnet.sh format OperationsHub.sln --verify-no-changes --no-restore --verbosity minimal
+The following commands completed successfully in native Windows PowerShell on 2026-07-29. In Codex, the wrapper detects `CODEX_CI` or `CODEX_THREAD_ID`, disables build servers, and uses one MSBuild node to avoid sandbox IPC limitations.
+
+```powershell
+.\eng\dotnet.cmd restore OperationsHub.sln --verbosity minimal
+.\eng\dotnet.cmd build OperationsHub.sln --no-restore --verbosity minimal
+.\eng\dotnet.cmd test OperationsHub.sln --no-build --no-restore --verbosity minimal
+.\eng\dotnet.cmd format OperationsHub.sln --verify-no-changes --no-restore --verbosity minimal
 docker compose config
 docker compose up -d mysql
-docker inspect --format '{{.State.Health.Status}}' operationshub-mysql-1
+docker compose ps
 ```
 
-The build completed with zero warnings and errors, all 14 tests passed, formatting required no further changes, and the MySQL-backed migration, development-identity, and reference-data integration tests passed. The local web smoke check returned the expected security headers and API `401` response without rewriting it to an HTML error page.
+The sandboxed build completed with zero warnings and errors, all 21 sandboxed tests passed, formatting required no further changes, MySQL was healthy, and the rendered home page loaded at `http://localhost:5090` without browser console errors.
 
 ## Database migrations and seed data
 
 Restore the repository-pinned EF tool, then apply all migrations:
 
-```bash
-./eng/dotnet.sh tool restore
-./eng/dotnet.sh tool run dotnet-ef database update \
-  --project src/OperationsHub.Infrastructure \
+```powershell
+.\eng\dotnet.cmd tool restore
+.\eng\dotnet.cmd tool run dotnet-ef database update `
+  --project src/OperationsHub.Infrastructure `
   --startup-project src/OperationsHub.Web
 ```
 
