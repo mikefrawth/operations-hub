@@ -75,6 +75,10 @@
                                                     {
                                                         <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateDepartmentAsync(department.Id)">Deactivate</button>
                                                     }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success" @onclick="() => ReactivateDepartmentAsync(department.Id)">Reactivate</button>
+                                                    }
                                                 }
                                             </td>
                                         </tr>
@@ -151,6 +155,10 @@
                                                     {
                                                         <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateRequestTypeAsync(requestType.Id)">Deactivate</button>
                                                     }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success" @onclick="() => ReactivateRequestTypeAsync(requestType.Id)">Reactivate</button>
+                                                    }
                                                 }
                                             </td>
                                         </tr>
@@ -199,6 +207,11 @@
         await CompleteAsync(await ReferenceDataService.DeactivateDepartmentAsync(id, CancellationToken.None), "Department deactivated.");
     }
 
+    private async Task ReactivateDepartmentAsync(Guid id)
+    {
+        await CompleteAsync(await ReferenceDataService.ReactivateDepartmentAsync(id, CancellationToken.None), "Department reactivated.");
+    }
+
     private async Task CreateRequestTypeAsync()
     {
         await CompleteAsync(await ReferenceDataService.CreateRequestTypeAsync(new(newRequestType.Name, newRequestType.Description), CancellationToken.None), "Request type added.");
@@ -213,6 +226,11 @@
     private async Task DeactivateRequestTypeAsync(Guid id)
     {
         await CompleteAsync(await ReferenceDataService.DeactivateRequestTypeAsync(id, CancellationToken.None), "Request type deactivated.");
+    }
+
+    private async Task ReactivateRequestTypeAsync(Guid id)
+    {
+        await CompleteAsync(await ReferenceDataService.ReactivateRequestTypeAsync(id, CancellationToken.None), "Request type reactivated.");
     }
 
     private void StartDepartmentEdit(DepartmentDto department)

@@ -39,6 +39,11 @@ public sealed class RequestType
         IsActive = false;
     }
 
+    public void Reactivate()
+    {
+        IsActive = true;
+    }
+
     private static string ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))

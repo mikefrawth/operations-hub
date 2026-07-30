@@ -14,11 +14,13 @@ public static class ReferenceDataEndpoints
         group.MapPost("/departments", CreateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         group.MapPut("/departments/{id:guid}", UpdateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         group.MapPost("/departments/{id:guid}/deactivate", DeactivateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPost("/departments/{id:guid}/reactivate", ReactivateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
         group.MapGet("/request-types", GetRequestTypesAsync);
         group.MapPost("/request-types", CreateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         group.MapPut("/request-types/{id:guid}", UpdateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
         group.MapPost("/request-types/{id:guid}/deactivate", DeactivateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPost("/request-types/{id:guid}/reactivate", ReactivateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
 
         return endpoints;
     }
@@ -47,6 +49,12 @@ public static class ReferenceDataEndpoints
         CancellationToken cancellationToken) =>
         ToResult(await service.DeactivateDepartmentAsync(id, cancellationToken));
 
+    private static async Task<IResult> ReactivateDepartmentAsync(
+        Guid id,
+        IReferenceDataAdministrationService service,
+        CancellationToken cancellationToken) =>
+        ToResult(await service.ReactivateDepartmentAsync(id, cancellationToken));
+
     private static Task<IReadOnlyList<RequestTypeDto>> GetRequestTypesAsync(
         bool activeOnly,
         IReferenceDataAdministrationService service,
@@ -70,6 +78,12 @@ public static class ReferenceDataEndpoints
         IReferenceDataAdministrationService service,
         CancellationToken cancellationToken) =>
         ToResult(await service.DeactivateRequestTypeAsync(id, cancellationToken));
+
+    private static async Task<IResult> ReactivateRequestTypeAsync(
+        Guid id,
+        IReferenceDataAdministrationService service,
+        CancellationToken cancellationToken) =>
+        ToResult(await service.ReactivateRequestTypeAsync(id, cancellationToken));
 
     private static IResult ToResult<T>(ReferenceDataOperationResult<T> result) => result.Status switch
     {

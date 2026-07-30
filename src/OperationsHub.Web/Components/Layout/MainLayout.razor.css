@@ -8,6 +8,21 @@ main {
     flex: 1;
 }
 
+.skip-link {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 1100;
+    padding: 0.5rem 0.75rem;
+    color: #fff;
+    background: #0b3d91;
+    transform: translateY(-150%);
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
 .sidebar {
     background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
 }

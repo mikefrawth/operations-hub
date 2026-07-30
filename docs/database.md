@@ -4,7 +4,7 @@
 
 Milestone 1 established MySQL 8.4 persistence through EF Core 10 and MySQL Connector/NET's `MySql.EntityFrameworkCore` provider. The initial migration is [20260729003606_InitialDatabaseAndIdentity.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729003606_InitialDatabaseAndIdentity.cs). The Milestone 2 security review added [20260729101935_RemoveDemoIdentityFromSchemaSeed.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729101935_RemoveDemoIdentityFromSchemaSeed.cs). Milestone 4 adds [20260729113818_AddRequestReportingAndAssignmentProcedure.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729113818_AddRequestReportingAndAssignmentProcedure.cs). EF migrations remain the source of truth for application schema evolution.
 
-In Development, the web host applies pending migrations and then initializes demo identities at startup. Production migration execution is deliberately deferred to deployment automation, and non-development configuration must supply `ConnectionStrings__OperationsHub`.
+In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. Production migration execution is deliberately deferred to deployment automation, and non-development configuration must supply `ConnectionStrings__OperationsHub`.
 
 ## Schema
 
@@ -42,7 +42,7 @@ These credentials are intentionally public development fixtures. They have faile
 
 ## Reference-data administration
 
-The Administrator role can create, list, rename, and deactivate departments and request types at `/administration/reference-data`. The local `/sign-in` page posts credentials through an antiforgery-protected HTTP request, which establishes the cookie-backed session for Development demo users. Sign-in is limited to ten attempts per remote IP per minute, and Identity locks eligible accounts for 15 minutes after five failed attempts. Authorization redirects browser requests to sign-in, while `/api` requests receive normal `401` or `403` responses.
+The Administrator role can create, list, rename, deactivate, and reactivate departments and request types at `/administration/reference-data`. Reactivation restores a retired value for future selection without changing historical request relationships. The local `/sign-in` page posts credentials through an antiforgery-protected HTTP request, which establishes the cookie-backed session for Development demo users. Sign-in is limited to ten attempts per remote IP per minute, and Identity locks eligible accounts for 15 minutes after five failed attempts. Authorization redirects browser requests to sign-in, while `/api` requests receive normal `401` or `403` responses.
 
 The same service is exposed through administrator-only endpoints under `/api/reference-data`. All API mutations require an antiforgery request token; an authenticated client can obtain one from `GET /api/antiforgery`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
 

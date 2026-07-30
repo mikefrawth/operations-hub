@@ -12,9 +12,13 @@ public interface IReferenceDataAdministrationService
 
     public Task<ReferenceDataOperationResult<DepartmentDto>> DeactivateDepartmentAsync(Guid id, CancellationToken cancellationToken);
 
+    public Task<ReferenceDataOperationResult<DepartmentDto>> ReactivateDepartmentAsync(Guid id, CancellationToken cancellationToken);
+
     public Task<ReferenceDataOperationResult<RequestTypeDto>> CreateRequestTypeAsync(CreateRequestTypeCommand command, CancellationToken cancellationToken);
 
     public Task<ReferenceDataOperationResult<RequestTypeDto>> UpdateRequestTypeAsync(Guid id, UpdateRequestTypeCommand command, CancellationToken cancellationToken);
 
     public Task<ReferenceDataOperationResult<RequestTypeDto>> DeactivateRequestTypeAsync(Guid id, CancellationToken cancellationToken);
+
+    public Task<ReferenceDataOperationResult<RequestTypeDto>> ReactivateRequestTypeAsync(Guid id, CancellationToken cancellationToken);
 }

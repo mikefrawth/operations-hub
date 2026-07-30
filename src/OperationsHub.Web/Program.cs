@@ -10,10 +10,14 @@ using OperationsHub.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<OperationsHubDbContext>("database");
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(AuthorizationPolicies.Administrator));
 builder.Services.AddRateLimiter(options =>
@@ -37,9 +41,19 @@ builder.Services.AddOperationsHubPersistence(builder.Configuration);
 
 var app = builder.Build();
 
+app.UseExceptionHandler(exceptionHandlerApp => exceptionHandlerApp.Run(async context =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        await Results.Problem(statusCode: StatusCodes.Status500InternalServerError).ExecuteAsync(context);
+        return;
+    }
+
+    context.Response.Redirect("/Error");
+}));
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
     app.UseHttpsRedirection();
 }
@@ -75,6 +89,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapStaticAssets();
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapAuthenticationEndpoints();
 app.MapReferenceDataEndpoints();
 app.MapServiceRequestEndpoints();
