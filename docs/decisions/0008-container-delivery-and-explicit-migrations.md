@@ -8,6 +8,8 @@ Portfolio reviewers need a low-friction local demonstration, while a future publ
 
 Build `OperationsHub.Web` as a pinned, multi-stage Linux container image that runs as a non-root user. Docker Compose runs that image with MySQL for an isolated Development demonstration and persists both database data and Data Protection keys in named volumes. The same image accepts `--migrate` as a one-shot mode that applies EF Core migrations and exits without starting HTTP or initializing Development demo identities.
 
+The image performs its publish-time restore evaluation after application source is copied. This retains the project-file restore cache while ensuring .NET 10 discovers and publishes the Blazor static-web-assets runtime. The image health check verifies that runtime script in addition to the process-only health endpoint. The private Development Compose connection disables TLS and permits MySQL public-key retrieval so a fresh MySQL 8.4 volume can authenticate; production connections must use deployment-appropriate TLS instead.
+
 Expose separate process-liveness and database-readiness endpoints. Support forwarded headers only through an explicit setting for deployments whose trusted ingress is the container's sole network path. Keep production credentials and provider configuration outside the image.
 
 ## Consequences

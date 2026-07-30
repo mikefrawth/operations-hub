@@ -55,6 +55,8 @@ After the image has been built, start the complete application again with `docke
 
 Use `cp .env.example .env` instead of `Copy-Item` on Linux, macOS, or WSL. Stop the stack with `docker compose down`. The named database and Data Protection volumes survive normal shutdown.
 
+If the browser reports an empty response, run `docker compose ps` and `docker compose logs web`. The `web` service must remain `Up` and become `healthy`; a `Restarting` status means startup failed and the logs contain the underlying error.
+
 ## Optional native development workflow
 
 Skip this entire section when running the application with Docker. It exists only for contributors who deliberately want to run the web process outside its container for `dotnet watch`, direct debugger integration, or repository test commands.
@@ -138,6 +140,8 @@ Rebuild after changing application source or the Dockerfile:
 ```bash
 docker compose up --build --detach web
 ```
+
+The image health check verifies both process liveness and delivery of the Blazor framework script required for interactive buttons and forms.
 
 For native web development, start only MySQL with `docker compose up -d mysql`. To remove both local named volumes, including all database data and persisted local sign-in keys:
 

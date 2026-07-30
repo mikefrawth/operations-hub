@@ -17,14 +17,14 @@ The Compose stack is intentionally local-only:
 - `ASPNETCORE_ENVIRONMENT` is `Development`.
 - MySQL and web ports are published to the host.
 - `.env.example` contains known development credentials.
-- TLS is disabled for the private Compose database connection.
+- TLS is disabled for the private Compose database connection, which explicitly allows MySQL public-key retrieval for the Development-only credentials.
 - Data Protection keys are unencrypted files inside a private local named volume.
 
 Do not expose this configuration to the internet. `docker compose down` stops the stack while preserving the named volumes. `docker compose down --volumes` also removes the database and Data Protection keys.
 
 ## Image contract
 
-The root [Dockerfile](../Dockerfile) uses pinned .NET SDK and ASP.NET Core runtime versions. Its restore layer copies project files before source files for useful build caching, publishes a framework-dependent Release build, and runs the final image as the .NET image's unprivileged application user. The final filesystem is read-only under Compose except for `/tmp` and the Data Protection key volume.
+The root [Dockerfile](../Dockerfile) uses pinned .NET SDK and ASP.NET Core runtime versions. Its dependency-restore layer copies project files before source files for useful build caching. Publish re-evaluates restore inputs after the Razor and static assets are copied so the .NET 10 static-web-assets manifest includes the Blazor runtime. The final framework-dependent image runs as the .NET image's unprivileged application user, and its filesystem is read-only under Compose except for `/tmp` and the Data Protection key volume.
 
 Build the image independently with:
 
@@ -37,7 +37,7 @@ The image:
 - listens for HTTP on container port `8080`;
 - writes structured JSON logs to standard output;
 - handles `SIGTERM` through the ASP.NET Core host;
-- provides a Docker health check at `/health/live`;
+- provides a Docker health check that verifies `/health/live` and the Blazor framework script;
 - accepts `--migrate` after the image name to apply EF migrations and exit;
 - never initializes Development demo identities during `--migrate`;
 - does not contain a connection string or other deployment secret.

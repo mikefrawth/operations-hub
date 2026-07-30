@@ -12,9 +12,10 @@ COPY src/OperationsHub.Web/OperationsHub.Web.csproj src/OperationsHub.Web/
 RUN dotnet restore src/OperationsHub.Web/OperationsHub.Web.csproj
 
 COPY src/ src/
+# Re-evaluate restore inputs after Razor/static assets are present so the
+# published .NET 10 static-web-assets manifest includes the Blazor runtime.
 RUN dotnet publish src/OperationsHub.Web/OperationsHub.Web.csproj \
     --configuration Release \
-    --no-restore \
     --output /app/publish \
     /p:UseAppHost=false
 
@@ -35,6 +36,8 @@ EXPOSE 8080
 USER ${APP_UID}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl --fail --silent --show-error http://127.0.0.1:8080/health/live || exit 1
+    CMD curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8080/health/live \
+        && curl --fail --silent --show-error --output /dev/null http://127.0.0.1:8080/_framework/blazor.web.js \
+        || exit 1
 
 ENTRYPOINT ["dotnet", "OperationsHub.Web.dll"]
