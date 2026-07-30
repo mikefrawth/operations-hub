@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OperationsHub.Application.Requests;
 using OperationsHub.Domain.Entities;
 using OperationsHub.Domain.Enums;
@@ -16,8 +17,9 @@ public sealed class RequestReportingMySqlTests
     public async Task AssignmentProcedureCommitsAllWritesAndRollsBackStaleVersionAttempt()
     {
         var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
-            ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only";
+            ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled";
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Development });
+        builder.Logging.ClearProviders();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:OperationsHub"] = connectionString });
         builder.Services.AddOperationsHubPersistence(builder.Configuration);
         using var host = builder.Build();

@@ -13,8 +13,8 @@
 
 Run:
 
-```bash
-./eng/dotnet.sh test
-./eng/dotnet.sh test tests/OperationsHub.UnitTests
-./eng/dotnet.sh test tests/OperationsHub.IntegrationTests
+```powershell
+.\eng\dotnet.cmd test
+.\eng\dotnet.cmd test tests/OperationsHub.UnitTests
+.\eng\dotnet.cmd test tests/OperationsHub.IntegrationTests
 ```

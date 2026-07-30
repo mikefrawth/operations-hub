@@ -4,7 +4,7 @@
 
 Milestone 1 established MySQL 8.4 persistence through EF Core 10 and MySQL Connector/NET's `MySql.EntityFrameworkCore` provider. The initial migration is [20260729003606_InitialDatabaseAndIdentity.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729003606_InitialDatabaseAndIdentity.cs). The Milestone 2 security review added [20260729101935_RemoveDemoIdentityFromSchemaSeed.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729101935_RemoveDemoIdentityFromSchemaSeed.cs). Milestone 4 adds [20260729113818_AddRequestReportingAndAssignmentProcedure.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729113818_AddRequestReportingAndAssignmentProcedure.cs). EF migrations remain the source of truth for application schema evolution.
 
-In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. Production migration execution is deliberately deferred to deployment automation, and non-development configuration must supply `ConnectionStrings__OperationsHub`.
+In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. The committed loopback Docker connection disables TLS to avoid platform credential-provider dependencies in isolated local environments; non-development configuration must supply `ConnectionStrings__OperationsHub` with deployment-appropriate transport security. Production migration execution is deliberately deferred to deployment automation.
 
 ## Schema
 
@@ -52,14 +52,14 @@ Milestone 3 stores current request state in `service_requests` and preserves app
 
 ## Commands
 
-```bash
-./eng/dotnet.sh tool restore
-./eng/dotnet.sh tool run dotnet-ef database update \
-  --project src/OperationsHub.Infrastructure \
+```powershell
+.\eng\dotnet.cmd tool restore
+.\eng\dotnet.cmd tool run dotnet-ef database update `
+  --project src/OperationsHub.Infrastructure `
   --startup-project src/OperationsHub.Web
 ```
 
-To add a future migration, use the same command structure with `migrations add <MigrationName>` and `--output-dir Persistence/Migrations`. The MySQL integration tests need the Compose service running at port 3307, or an `OPERATIONS_HUB_TEST_CONNECTION` override.
+To add a future migration, use the same command structure with `migrations add <MigrationName>` and `--output-dir Persistence/Migrations`. The MySQL integration tests need the Compose service running at port 3307, or an `OPERATIONS_HUB_TEST_CONNECTION` override. Their default loopback connection uses `SslMode=Disabled`; overrides for non-loopback databases must select appropriate TLS settings.
 
 ## Views and stored procedures
 

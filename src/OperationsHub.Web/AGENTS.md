@@ -20,6 +20,6 @@ This project is the ASP.NET Core host, Blazor UI, REST API surface, middleware p
 - Require antiforgery validation on every cookie-authenticated mutation endpoint and rate-limit credential endpoints.
 - Use Problem Details for API errors and retain trace identifiers in safe error responses.
 - Add endpoint and representative authentication/authorization coverage to IntegrationTests.
-- Run `./eng/dotnet.sh run --project src/OperationsHub.Web` for local UI checks.
+- Run `.\eng\dotnet.cmd run --project src/OperationsHub.Web` for local UI checks in native Windows/PowerShell environments.
 
 Avoid template/demo pages, business logic in `.razor` files, unbounded lists, stack-trace disclosure, and service location from components.
