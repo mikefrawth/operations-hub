@@ -51,11 +51,15 @@ docker compose ps
 
 Open `http://localhost:5090`. Compose builds the ASP.NET Core image, starts MySQL, waits for the database health check, starts the web container, applies pending migrations, and initializes the Development-only demo scenario. The demo accounts are listed under [Demo accounts](#demo-accounts).
 
+After the image has been built, start the complete application again with `docker compose up --detach`. Add `--build` whenever the application source or Dockerfile changes. No local .NET SDK or `eng\dotnet` command is required for this Docker workflow.
+
 Use `cp .env.example .env` instead of `Copy-Item` on Linux, macOS, or WSL. Stop the stack with `docker compose down`. The named database and Data Protection volumes survive normal shutdown.
 
-## Native development setup
+## Optional native development workflow
 
-Contributors who want `dotnet watch`, direct debugger integration, or the repository test commands also need:
+Skip this entire section when running the application with Docker. It exists only for contributors who deliberately want to run the web process outside its container for `dotnet watch`, direct debugger integration, or repository test commands.
+
+That optional workflow also requires:
 
 - Linux, macOS, Windows, or WSL
 - [.NET SDK 10.0.302](https://dotnet.microsoft.com/download/dotnet/10.0), or a compatible later 10.0 patch selected by `global.json`
@@ -64,9 +68,9 @@ Contributors who want `dotnet watch`, direct debugger integration, or the reposi
 
 Use `eng\dotnet.cmd` from native Windows PowerShell and `eng/dotnet.sh` from Bash. The Windows entry point invokes `eng\dotnet.ps1` with a process-scoped execution-policy bypass, so it works without changing machine or user policy. Each wrapper uses the platform-appropriate repository-local `.dotnet` SDK when one exists and otherwise delegates to `dotnet` on `PATH`. Both wrappers isolate CLI/package caches inside the repository and use the committed `NuGet.Config`; the PowerShell wrapper also normalizes duplicate `Path`/`PATH` variables that some sandboxed Windows environments provide.
 
-### 1. Initialize the repository and local environment
+### 1. Initialize the native toolchain
 
-Run these commands once when using the web host directly:
+Run these commands once when choosing to run the web host directly:
 
 ```powershell
 git clone https://github.com/mikefrawth/operations-hub.git
@@ -79,9 +83,9 @@ docker compose ps
 
 The copied `.env` file contains local-development settings for Docker Compose and is ignored by Git. The web host's committed Development connection string matches the example defaults and disables TLS only for the loopback Docker connection. If you change the database user, password, port, or database name in `.env`, also provide a matching `ConnectionStrings__OperationsHub` environment variable when running the web host. `docker compose ps` shows whether MySQL has reached a healthy state. Restore downloads the NuGet dependencies required by the solution.
 
-### 2. Build and run normally
+### 2. Build and run the web host natively
 
-For a normal local startup after the one-time setup:
+In this optional mode, Docker runs only MySQL and the .NET wrapper runs the web host:
 
 ```powershell
 docker compose up -d mysql
@@ -93,7 +97,7 @@ Open `http://localhost:5090`. Stop the application with <kbd>Ctrl</kbd>+<kbd>C</
 
 Run `.\eng\dotnet.cmd restore` again after pulling changes that modify project files or NuGet dependencies. The `--no-restore` build option keeps the normal build fast by using dependencies that were already restored.
 
-### 3. Develop with automatic rebuilds
+### 3. Develop natively with automatic rebuilds
 
 Use `dotnet watch` while actively changing C# or Razor files:
 
@@ -143,7 +147,9 @@ docker compose down --volumes
 
 This reset is destructive and intended only for disposable local development data. See [docs/deployment.md](docs/deployment.md) for the image contract, health endpoints, explicit migration mode, managed-MySQL configuration, reverse-proxy requirements, secrets, and rollback guidance.
 
-## Build, test, and format
+## Contributor build, test, and format
+
+These commands verify source changes outside the application container. They are not required to start the Docker Compose application.
 
 ```powershell
 .\eng\dotnet.cmd restore
