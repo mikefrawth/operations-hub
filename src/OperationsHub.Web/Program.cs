@@ -1,23 +1,48 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
-using OperationsHub.Web.Components;
 using OperationsHub.Web.Api;
 using OperationsHub.Web.Authentication;
+using OperationsHub.Web.Components;
 using OperationsHub.Application.ReferenceData;
 using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Persistence;
 
-var builder = WebApplication.CreateBuilder(args);
+const string MigrationSwitch = "--migrate";
+var runMigrationsOnly = args.Contains(MigrationSwitch, StringComparer.Ordinal);
+var hostArguments = args.Where(argument => !string.Equals(argument, MigrationSwitch, StringComparison.Ordinal)).ToArray();
+var builder = WebApplication.CreateBuilder(hostArguments);
 
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    builder.Services.AddDataProtection()
+        .SetApplicationName("OperationsHub")
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+}
+
+var trustForwardedHeaders = builder.Configuration.GetValue<bool>("ReverseProxy:TrustForwardedHeaders");
+if (trustForwardedHeaders)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<OperationsHubDbContext>("database");
+    .AddDbContextCheck<OperationsHubDbContext>("database", tags: ["ready"]);
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(AuthorizationPolicies.Administrator));
 builder.Services.AddRateLimiter(options =>
@@ -41,6 +66,18 @@ builder.Services.AddOperationsHubPersistence(builder.Configuration);
 
 var app = builder.Build();
 
+if (runMigrationsOnly)
+{
+    await app.Services.MigrateOperationsHubDatabaseAsync(CancellationToken.None);
+    LogDatabaseMigrationsCompleted(app.Logger);
+    return;
+}
+
+if (trustForwardedHeaders)
+{
+    app.UseForwardedHeaders();
+}
+
 app.UseExceptionHandler(exceptionHandlerApp => exceptionHandlerApp.Run(async context =>
 {
     if (context.Request.Path.StartsWithSegments("/api"))
@@ -55,7 +92,9 @@ app.UseExceptionHandler(exceptionHandlerApp => exceptionHandlerApp.Run(async con
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
-    app.UseHttpsRedirection();
+    app.UseWhen(
+        context => !context.Request.Path.StartsWithSegments("/health"),
+        branch => branch.UseHttpsRedirection());
 }
 
 app.Use(async (context, next) =>
@@ -90,6 +129,14 @@ if (app.Environment.IsDevelopment())
 
 app.MapStaticAssets();
 app.MapHealthChecks("/health").AllowAnonymous();
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+}).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = healthCheck => healthCheck.Tags.Contains("ready"),
+}).AllowAnonymous();
 app.MapAuthenticationEndpoints();
 app.MapReferenceDataEndpoints();
 app.MapServiceRequestEndpoints();
@@ -98,4 +145,11 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
-public partial class Program;
+public partial class Program
+{
+    [LoggerMessage(
+        EventId = 1000,
+        Level = LogLevel.Information,
+        Message = "OperationsHub database migrations completed successfully.")]
+    private static partial void LogDatabaseMigrationsCompleted(ILogger logger);
+}

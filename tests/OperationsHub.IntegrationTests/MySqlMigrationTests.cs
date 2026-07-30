@@ -14,6 +14,32 @@ namespace OperationsHub.IntegrationTests;
 public sealed class MySqlMigrationTests
 {
     [Fact]
+    public async Task MigrationOnlyInitializationAppliesSchemaOutsideDevelopment()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
+            ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled";
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            EnvironmentName = Environments.Production,
+        });
+        builder.Configuration.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:OperationsHub"] = connectionString,
+            });
+        builder.Services.AddOperationsHubPersistence(builder.Configuration);
+
+        using var host = builder.Build();
+        await host.Services.MigrateOperationsHubDatabaseAsync(CancellationToken.None);
+
+        await using var scope = host.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
+        var pendingMigrations = await context.Database.GetPendingMigrationsAsync(CancellationToken.None);
+
+        Assert.Empty(pendingMigrations);
+    }
+
+    [Fact]
     public async Task LatestMigrationsApplyWithoutSchemaSeededUserAccounts()
     {
         var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")

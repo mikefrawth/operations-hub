@@ -21,5 +21,6 @@ This project implements database persistence, ASP.NET Core Identity persistence,
 - Put durable standalone SQL artifacts in `/database`; keep application invocation code here.
 - Use explicit transactions for multi-write business operations and document surprising isolation/locking choices.
 - Test relational mappings, constraints, transactions, procedures, and raw SQL against disposable MySQL—not EF Core InMemory.
+- Keep the migration-only service path free of Development demo identity and portfolio-scenario initialization.
 
 Avoid generic-repository wrappers over DbContext, concatenated SQL, provider details in Application, catch-and-ignore behavior, and migrations edited without matching model changes.

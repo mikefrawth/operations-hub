@@ -44,6 +44,23 @@ Owns Blazor components, REST endpoints, authentication configuration, middleware
 
 The host writes structured JSON logs, uses centralized exception handling, returns RFC 7807 Problem Details for API failures, and exposes an anonymous `/health` endpoint backed by the EF Core database check.
 
+## Container runtime and delivery
+
+The web host is published as one Linux container image through a pinned multi-stage Dockerfile. The same immutable image serves requests normally or runs as a one-shot `--migrate` task. Migration-only mode applies EF Core migrations and exits before the middleware pipeline starts; it does not initialize Development demo identities. This keeps production schema changes in the release workflow rather than racing across web replicas.
+
+Docker Compose supplies the local portfolio topology:
+
+```mermaid
+flowchart LR
+    Browser["Browser :5090"] --> Web["OperationsHub.Web<br/>container :8080"]
+    Web --> MySQL["MySQL 8.4<br/>container :3306"]
+    HostTests["Native tests :3307"] --> MySQL
+    Web --> Keys["Data Protection<br/>named volume"]
+    MySQL --> Data["MySQL data<br/>named volume"]
+```
+
+The Compose web service runs as a non-root user with a read-only root filesystem, waits for healthy MySQL, and persists Data Protection keys separately from the image. `/health/live` checks only the process; `/health/ready` and the existing `/health` endpoint include database connectivity. A hosted deployment places the image behind trusted HTTPS ingress and uses managed MySQL rather than publishing the Compose database. See [deployment.md](deployment.md) and [decision 0008](decisions/0008-container-delivery-and-explicit-migrations.md).
+
 ## Rendering and UI
 
 The Blazor Web App uses global Interactive Server rendering. This provides a cohesive server-side security and data-access model for an internal tool while retaining an interactive component experience. The tradeoff is a live server circuit per connected user and a stronger requirement for connection resilience and server capacity.
@@ -77,7 +94,8 @@ This mixed approach demonstrates both maintainable application persistence and d
 - MySQL enables substantive relational and SQL work but makes real-container integration tests necessary.
 - Explicit application services add some mapping code but keep UI, persistence, and business rules separated.
 - Soft deactivation preserves history at the cost of consistently filtering active reference data.
+- One immutable container image simplifies delivery, while explicit migrations add a required release step.
 
 ## Future scaling path
 
-Scale vertically and with multiple web instances first, accounting for Blazor circuit affinity or backplane needs. Optimize indexed queries and reporting projections before splitting services. If a module later develops independent ownership, scaling, or deployment requirements, extract it behind an existing Application contract and use an outbox-backed integration boundary rather than sharing database tables.
+Scale vertically and with multiple web instances first, accounting for Blazor circuit affinity, shared Data Protection keys, and session affinity or backplane needs. Optimize indexed queries and reporting projections before splitting services. If a module later develops independent ownership, scaling, or deployment requirements, extract it behind an existing Application contract and use an outbox-backed integration boundary rather than sharing database tables.

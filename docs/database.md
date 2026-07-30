@@ -4,7 +4,7 @@
 
 Milestone 1 established MySQL 8.4 persistence through EF Core 10 and MySQL Connector/NET's `MySql.EntityFrameworkCore` provider. The initial migration is [20260729003606_InitialDatabaseAndIdentity.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729003606_InitialDatabaseAndIdentity.cs). The Milestone 2 security review added [20260729101935_RemoveDemoIdentityFromSchemaSeed.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729101935_RemoveDemoIdentityFromSchemaSeed.cs). Milestone 4 adds [20260729113818_AddRequestReportingAndAssignmentProcedure.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729113818_AddRequestReportingAndAssignmentProcedure.cs). EF migrations remain the source of truth for application schema evolution.
 
-In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. The committed loopback Docker connection disables TLS to avoid platform credential-provider dependencies in isolated local environments; non-development configuration must supply `ConnectionStrings__OperationsHub` with deployment-appropriate transport security. Production migration execution is deliberately deferred to deployment automation.
+In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. This includes both native startup and the full local Compose stack. The committed loopback and private-Compose connections disable TLS only for isolated local development. The Compose connection also enables MySQL public-key retrieval because MySQL 8.4's default authentication cannot otherwise establish this non-TLS Development connection from a fresh volume. Non-development configuration must supply `ConnectionStrings__OperationsHub` with deployment-appropriate transport security and must not copy this Development-only setting blindly. The container image's `--migrate` mode gives deployment automation an explicit production migration step without starting HTTP or creating demo identities.
 
 ## Schema
 
@@ -60,6 +60,14 @@ Milestone 3 stores current request state in `service_requests` and preserves app
 ```
 
 To add a future migration, use the same command structure with `migrations add <MigrationName>` and `--output-dir Persistence/Migrations`. The MySQL integration tests need the Compose service running at port 3307, or an `OPERATIONS_HUB_TEST_CONNECTION` override. Their default loopback connection uses `SslMode=Disabled`; overrides for non-loopback databases must select appropriate TLS settings.
+
+The equivalent container migration command for the local Compose connection is:
+
+```bash
+docker compose run --rm web --migrate
+```
+
+Production release automation runs the immutable release image with `--migrate` and injects its managed connection string through `ConnectionStrings__OperationsHub`. Migration-only mode uses the current environment configuration but never invokes the Development identity or portfolio-scenario seeders. See [deployment.md](deployment.md) for the release sequence.
 
 ## Views and stored procedures
 

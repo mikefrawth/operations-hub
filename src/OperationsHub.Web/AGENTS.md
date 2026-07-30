@@ -21,5 +21,7 @@ This project is the ASP.NET Core host, Blazor UI, REST API surface, middleware p
 - Use Problem Details for API errors and retain trace identifiers in safe error responses.
 - Add endpoint and representative authentication/authorization coverage to IntegrationTests.
 - Run `.\eng\dotnet.cmd run --project src/OperationsHub.Web` for local UI checks in native Windows/PowerShell environments.
+- Keep container hosting on HTTP port `8080`; terminate public TLS at a trusted ingress and enable forwarded headers only when direct container access is blocked.
+- Keep `/health/live` independent of external services and use `/health/ready` for database-backed readiness.
 
 Avoid template/demo pages, business logic in `.razor` files, unbounded lists, stack-trace disclosure, and service location from components.
