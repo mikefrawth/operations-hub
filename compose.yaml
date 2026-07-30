@@ -1,6 +1,31 @@
 name: operationshub
 
 services:
+  web:
+    image: operationshub-web:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__OperationsHub: Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-operationshub};User=${MYSQL_USER:-operationshub};Password=${MYSQL_PASSWORD:-operationshub_dev_only};SslMode=Disabled
+      DataProtection__KeysPath: /var/lib/operationshub/keys
+    ports:
+      - "${APP_PORT:-5090}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - data-protection-keys:/var/lib/operationshub/keys
+
   mysql:
     image: mysql:8.4
     restart: unless-stopped
@@ -26,4 +51,5 @@ services:
       - mysql-data:/var/lib/mysql
 
 volumes:
+  data-protection-keys:
   mysql-data:

@@ -85,8 +85,17 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
         }
 
         var database = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
-        await database.Database.MigrateAsync();
+        await database.Database.MigrateAsync(CancellationToken.None);
         await DevelopmentIdentitySeeder.SeedAsync(scope.ServiceProvider);
         await DevelopmentPortfolioScenarioSeeder.SeedAsync(database, CancellationToken.None);
+    }
+
+    public static async Task MigrateOperationsHubDatabaseAsync(
+        this IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
+        await database.Database.MigrateAsync(cancellationToken);
     }
 }

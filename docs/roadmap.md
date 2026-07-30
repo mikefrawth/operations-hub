@@ -117,10 +117,28 @@ Status: **in progress (2026-07-29)**
 
 ## Milestone 6 — CI/CD and deployment
 
-- Production Dockerfile and CI pipeline
+Status: **in progress (container foundation implemented 2026-07-29)**
+
+Implemented in this increment:
+
+- Production Dockerfile implemented with pinned build/runtime images, a non-root runtime, and a health check
+- Full local Docker Compose stack implemented for the web host, MySQL, health-based startup, and persistent Data Protection keys
+- Explicit one-shot production migration mode implemented without Development demo initialization
+- Container, managed-MySQL, ingress, secrets, health-probe, release, smoke-test, and rollback contract documented
+
+Remaining:
+
+- CI pipeline
 - Build, test, publish, deployment, smoke-test, and rollback stages
-- Hosted application/MySQL configuration and environment-based secrets
-- Deployment documentation
+- Verified provider-specific application/MySQL configuration and environment-based secrets
+
+Container increment verification:
+
+- The pinned multi-stage image restored and published the web host successfully.
+- The web and MySQL Compose services both reached healthy status.
+- The containerized landing page and both liveness/readiness probes returned HTTP `200`.
+- Migration-only mode completed against MySQL and exited successfully.
+- The runtime used UID/GID `1654`, could not write to `/app`, and wrote its Data Protection key only to the mounted key volume.
 
 ## Milestone 7 — reporting and Power BI readiness
 

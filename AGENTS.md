@@ -45,7 +45,15 @@ The wrapper uses the repository-local SDK when present and otherwise delegates t
 
 Use `./eng/dotnet.sh` with the same arguments on Linux, macOS, or WSL.
 
-Local infrastructure:
+Full local application:
+
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose down
+```
+
+Database-only infrastructure for native web development and integration tests:
 
 ```bash
 docker compose config
