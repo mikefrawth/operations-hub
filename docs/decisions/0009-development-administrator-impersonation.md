@@ -17,6 +17,7 @@ The shared layout displays a prominent test-session banner on every page. Its an
 - Local role testing needs only one administrator login.
 - Authorization and business actions run as the target user; administrator privileges do not leak into the test session.
 - Normal request audit records identify the effective target user, while the paired impersonation events preserve who initiated the session.
+- Signing out from the side navigation during an impersonated session uses the audited return flow, clears the effective target session, and restores the original administrator.
 - A demoted, locked, or deleted original administrator cannot use the return action and must sign out.
 - The endpoints and navigation are absent outside Development, and the page also requires a policy that can succeed only in Development.
 - Production support impersonation remains intentionally unimplemented and would require a separate decision.
