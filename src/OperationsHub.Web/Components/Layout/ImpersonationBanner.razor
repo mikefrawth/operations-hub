@@ -1,0 +1,40 @@
+@using System.Security.Claims
+@using OperationsHub.Web.Authentication
+
+<AuthorizeView Context="authorization">
+    <Authorized>
+        @{
+            var originalAdministratorId = authorization.User.FindFirstValue(
+                ImpersonationClaimTypes.OriginalAdministratorId);
+        }
+        @if (!string.IsNullOrWhiteSpace(originalAdministratorId))
+        {
+            var targetDisplayName = authorization.User.FindFirstValue(
+                ImpersonationClaimTypes.TargetDisplayName)
+                ?? authorization.User.Identity?.Name
+                ?? "Unknown user";
+            var originalAdministratorDisplayName = authorization.User.FindFirstValue(
+                ImpersonationClaimTypes.OriginalAdministratorDisplayName)
+                ?? "Administrator";
+            var targetRole = authorization.User.FindFirstValue(ClaimTypes.Role)
+                ?? "Unknown role";
+
+            <aside class="impersonation-banner" aria-label="Administrator test session">
+                <div class="impersonation-message">
+                    <span class="impersonation-label">Test session</span>
+                    <span>
+                        Testing as <strong>@targetDisplayName</strong>
+                        <span class="impersonation-role">(@targetRole)</span>
+                        on behalf of @originalAdministratorDisplayName.
+                    </span>
+                </div>
+                <form method="post" action="/administrator-impersonation/end">
+                    <AntiforgeryToken />
+                    <button class="btn btn-dark btn-sm" type="submit">
+                        Return to administrator
+                    </button>
+                </form>
+            </aside>
+        }
+    </Authorized>
+</AuthorizeView>

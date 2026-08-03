@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using OperationsHub.Web.Api;
 using OperationsHub.Web.Authentication;
 using OperationsHub.Web.Components;
+using OperationsHub.Application.Impersonation;
 using OperationsHub.Application.ReferenceData;
 using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Persistence;
@@ -44,7 +45,16 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<OperationsHubDbContext>("database", tags: ["ready"]);
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(AuthorizationPolicies.Administrator, policy => policy.RequireRole(AuthorizationPolicies.Administrator));
+    .AddPolicy(
+        AuthorizationPolicies.Administrator,
+        policy => policy.RequireRole(AuthorizationPolicies.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.AdministratorImpersonation,
+        policy =>
+        {
+            policy.RequireRole(AuthorizationPolicies.Administrator);
+            policy.RequireAssertion(_ => builder.Environment.IsDevelopment());
+        });
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -60,6 +70,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IAdministratorImpersonationService, AdministratorImpersonationService>();
 builder.Services.AddScoped<IReferenceDataAdministrationService, ReferenceDataAdministrationService>();
 builder.Services.AddScoped<IServiceRequestWorkflowService, ServiceRequestWorkflowService>();
 builder.Services.AddOperationsHubPersistence(builder.Configuration);
@@ -125,6 +136,7 @@ app.UseAntiforgery();
 if (app.Environment.IsDevelopment())
 {
     await app.Services.InitializeOperationsHubDevelopmentDatabaseAsync();
+    app.MapAdministratorImpersonationEndpoints();
 }
 
 app.MapStaticAssets();

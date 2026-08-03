@@ -79,6 +79,8 @@ ASP.NET Core Identity provides Requester, Technician, Manager, and Administrator
 
 Fixed demo identities are a Development-only runtime concern. The current EF model seeds stable roles and reference data, but not users or password hashes. The remediation migration disables the historical demo identities for migration-only and non-development deployments; guarded Development startup restores the local demo password and role assignments.
 
+Development administrators can start an audited test session as an active account with exactly one Requester, Technician, or Manager role. The target Identity principal receives only that effective role; protected cookie claims retain the original administrator identity for the persistent return banner. Start and return are antiforgery-protected POST operations, return revalidates the original Administrator role, and neither the endpoints nor navigation are mapped outside Development. Normal workflow audit entries identify the effective target user, while paired impersonation events identify the initiating administrator. See [decision 0009](decisions/0009-development-administrator-impersonation.md).
+
 Managers and administrators select assignees from an Infrastructure-backed technician directory exposed through an Application contract. Assignment validation still checks the selected Identity user on the server before the transactional procedure runs.
 
 ## Data access
@@ -94,6 +96,7 @@ This mixed approach demonstrates both maintainable application persistence and d
 - MySQL enables substantive relational and SQL work but makes real-container integration tests necessary.
 - Explicit application services add some mapping code but keep UI, persistence, and business rules separated.
 - Soft deactivation preserves history at the cost of consistently filtering active reference data.
+- Development-only impersonation speeds role verification but deliberately does not provide a production support-access path.
 - One immutable container image simplifies delivery, while explicit migrations add a required release step.
 
 ## Future scaling path

@@ -18,7 +18,8 @@ erDiagram
     service_requests ||--o{ request_comments : contains
     service_requests ||--o{ request_status_history : records
     service_requests ||--o{ work_logs : contains
-    service_requests ||--o{ audit_events : audits
+    service_requests o|--o{ audit_events : audits
+    AspNetUsers ||--o{ audit_events : acts_in
 ```
 
 Identity supplies `AspNetUsers`, `AspNetRoles`, and its supporting tables. Application tables use lowercase snake case: `departments`, `request_types`, `service_requests`, `request_assignments`, `request_comments`, `request_status_history`, `work_logs`, and `audit_events`.
@@ -45,6 +46,10 @@ These credentials are intentionally public development fixtures. They have faile
 The Administrator role can create, list, rename, deactivate, and reactivate departments and request types at `/administration/reference-data`. Reactivation restores a retired value for future selection without changing historical request relationships. The local `/sign-in` page posts credentials through an antiforgery-protected HTTP request, which establishes the cookie-backed session for Development demo users. Sign-in is limited to ten attempts per remote IP per minute, and Identity locks eligible accounts for 15 minutes after five failed attempts. Authorization redirects browser requests to sign-in, while `/api` requests receive normal `401` or `403` responses.
 
 The same service is exposed through administrator-only endpoints under `/api/reference-data`. All API mutations require an antiforgery request token; an authenticated client can obtain one from `GET /api/antiforgery`. API list endpoints accept `activeOnly=true` to exclude deactivated records; the administration page shows both active and inactive records. Server-side validation trims names, requires a non-empty name of at most 100 characters, rejects duplicate names, and limits optional request-type descriptions to 500 characters.
+
+## Development administrator impersonation
+
+In Development, an Administrator can select an active single-role Requester, Technician, or Manager at `/administration/impersonation`. Starting and ending the test session append `administrator-impersonation-started` and `administrator-impersonation-ended` rows to `audit_events`. The administrator remains the audit actor, `service_request_id` is null, and the JSON details identify the target user plus request trace context. Workflow actions performed during the session continue to audit the effective target user, so the paired transition events retain the administrative chain of responsibility without changing the existing schema.
 
 ## Service-request workflow
 

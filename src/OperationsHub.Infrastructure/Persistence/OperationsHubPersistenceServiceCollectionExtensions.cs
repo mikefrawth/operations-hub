@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
+using OperationsHub.Application.Impersonation;
 using OperationsHub.Application.ReferenceData;
 using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Identity;
@@ -71,6 +72,7 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
         services.AddScoped<IReferenceDataStore, EntityFrameworkReferenceDataStore>();
         services.AddScoped<IServiceRequestStore, EntityFrameworkServiceRequestStore>();
         services.AddScoped<ITechnicianDirectory, EntityFrameworkTechnicianDirectory>();
+        services.AddScoped<IImpersonationStore, EntityFrameworkImpersonationStore>();
 
         return services;
     }

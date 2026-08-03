@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using OperationsHub.Application.Impersonation;
 using OperationsHub.Application.ReferenceData;
 using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Identity;
@@ -64,6 +65,28 @@ public sealed class SecurityEndpointMetadataTests
     }
 
     [Fact]
+    public async Task ImpersonationMutationsRequireAntiforgeryAndExpectedAuthorization()
+    {
+        await using var app = CreateApplication();
+        app.MapAdministratorImpersonationEndpoints();
+
+        var endpoints = GetRouteEndpoints(app);
+        var start = Assert.Single(
+            endpoints,
+            endpoint => endpoint.RoutePattern.RawText == "/administrator-impersonation/start");
+        var end = Assert.Single(
+            endpoints,
+            endpoint => endpoint.RoutePattern.RawText == "/administrator-impersonation/end");
+
+        Assert.True(start.Metadata.GetMetadata<IAntiforgeryMetadata>()?.RequiresValidation);
+        Assert.Contains(
+            start.Metadata.GetOrderedMetadata<IAuthorizeData>(),
+            metadata => metadata.Policy == AuthorizationPolicies.AdministratorImpersonation);
+        Assert.True(end.Metadata.GetMetadata<IAntiforgeryMetadata>()?.RequiresValidation);
+        Assert.NotEmpty(end.Metadata.GetOrderedMetadata<IAuthorizeData>());
+    }
+
+    [Fact]
     public async Task ServiceRequestEndpointsRequireAuthenticationAndMutationsRequireAntiforgery()
     {
         await using var app = CreateApplication();
@@ -86,7 +109,10 @@ public sealed class SecurityEndpointMetadataTests
         builder.Services.AddAntiforgery();
         builder.Services.AddScoped<IReferenceDataAdministrationService>(_ => null!);
         builder.Services.AddScoped<IServiceRequestWorkflowService>(_ => null!);
+        builder.Services.AddScoped<IAdministratorImpersonationService>(_ => null!);
+        builder.Services.AddScoped<UserManager<ApplicationUser>>(_ => null!);
         builder.Services.AddScoped<SignInManager<ApplicationUser>>(_ => null!);
+        builder.Services.AddSingleton(TimeProvider.System);
         return builder.Build();
     }
 

@@ -8,7 +8,7 @@ The project favors a complete modular monolith over microservices or speculative
 
 **Milestone 5 engineering hardening is in progress, with the Milestone 6 container-delivery foundation implemented.**
 
-The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained. Managers and administrators also have an open-request summary backed by a MySQL view. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage production image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
+The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage production image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
 
 ## Technology
 
@@ -41,6 +41,8 @@ See [docs/architecture.md](docs/architecture.md) and the records in [docs/decisi
 
 The fastest portfolio-review path requires only Git, Docker Engine, and the Docker Compose plugin:
 
+Before running these commands, start Docker Desktop on Windows or macOS, or start the Docker Engine service on Linux. Verify that the daemon is available with `docker info`; if Docker reports that it cannot connect to `dockerDesktopLinuxEngine` (Windows) or the Docker socket, the daemon is not running yet. On Docker Desktop installations that provide the Docker CLI extension, `docker desktop start` starts it; otherwise start Docker Desktop from the application menu.
+
 ```powershell
 git clone https://github.com/mikefrawth/operations-hub.git
 cd operations-hub
@@ -55,7 +57,7 @@ After the image has been built, start the complete application again with `docke
 
 Use `cp .env.example .env` instead of `Copy-Item` on Linux, macOS, or WSL. Stop the stack with `docker compose down`. The named database and Data Protection volumes survive normal shutdown.
 
-If the browser reports an empty response, run `docker compose ps` and `docker compose logs web`. The `web` service must remain `Up` and become `healthy`; a `Restarting` status means startup failed and the logs contain the underlying error.
+If the browser reports an empty response, first run `docker info` to confirm that the Docker daemon is running. Then run `docker compose ps` and `docker compose logs web`. The `web` service must remain `Up` and become `healthy`; a `Restarting` status means startup failed and the logs contain the underlying error. If MySQL is still starting, wait until `docker compose ps` reports it as `healthy` before investigating the web logs.
 
 ## Optional native development workflow
 
@@ -209,6 +211,8 @@ Production deployments should run this mode as a one-shot release task before st
 
 Development-only Requester, Technician, Manager, and Administrator accounts are created at Development startup with password `OperationsHub!2026`. They have lockout enabled and are never part of the current EF model seed. See [docs/database.md](docs/database.md) for their email addresses. These public credentials are suitable only for an isolated local environment.
 
+After signing in as the Administrator, open **Test as another user** in the navigation to assume a Requester, Technician, or Manager profile without entering another password. A yellow banner identifies the effective profile on every page and returns to the original administrator in one click. Start and end transitions are audited. This feature is mapped and authorized only in Development.
+
 ## API antiforgery
 
 The reference-data API uses the same cookie authentication as the Blazor UI. After signing in, a non-browser client must retain the authentication and antiforgery cookies, request `GET /api/antiforgery`, and send the returned request token in the returned header name for every `POST` or `PUT` request. Missing or invalid tokens are rejected before endpoint code runs.
@@ -223,6 +227,7 @@ The reference-data API uses the same cookie authentication as the Blazor UI. Aft
 | Department and request-type administration | Implemented in Milestone 2 |
 | Service-request workflow and REST API | Implemented in Milestone 3 |
 | Reporting view, stored procedure, and concurrency | Implemented in Milestone 4 |
+| Development administrator impersonation | Implemented in Milestone 5 |
 | Engineering hardening | In progress in Milestone 5 |
 | Container delivery | Dockerfile and full Compose stack implemented for Milestone 6 |
 | CI/CD and provider deployment | Planned for the remainder of Milestone 6 |
@@ -240,13 +245,14 @@ The same image built by Compose is designed for a managed container platform. A 
 ## Known limitations
 
 - The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and production identity-provider integration are deferred.
+- Administrator impersonation is Development-only and accepts only active accounts with exactly one Requester, Technician, or Manager role. Production support impersonation is intentionally not implemented.
 - Managers and administrators can assign requests only to active technicians selected from the technician directory.
 - Development startup creates a deterministic open service request so the service-request and open-request-summary pages have populated-data coverage for local demonstrations.
 - The unauthenticated `/health` and `/health/ready` endpoints check database connectivity; `/health/live` checks only whether the web process can serve requests. The host writes structured JSON logs and returns safe error responses through centralized exception handling.
 - Compose intentionally runs the web host in `Development` for disposable local demonstrations. The public demo identities are never initialized by the image's production migration mode.
 - Compose stores unencrypted Data Protection keys in a private local named volume for restart-stable demo sessions; production must use access-controlled, encrypted-at-rest storage or an external key provider.
 - A hosted production instance still needs a deliberate identity-provisioning or restricted-demo strategy; public registration is not enabled.
-- Integration tests cover migrations, Development-only identity initialization, security endpoint metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
+- Integration tests cover migrations, Development-only identity initialization and impersonation eligibility, security endpoint metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
 
 ## License
 

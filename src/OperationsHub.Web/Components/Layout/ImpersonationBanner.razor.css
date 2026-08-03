@@ -1,0 +1,45 @@
+.impersonation-banner {
+    align-items: center;
+    background: #ffca2c;
+    border-bottom: 3px solid #664d03;
+    color: #332701;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    padding: 0.65rem 1rem;
+    position: relative;
+    z-index: 1050;
+}
+
+.impersonation-message {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.impersonation-label {
+    background: #332701;
+    border-radius: 0.25rem;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.45rem;
+    text-transform: uppercase;
+}
+
+.impersonation-role {
+    white-space: nowrap;
+}
+
+@media (max-width: 640.98px) {
+    .impersonation-banner {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .impersonation-banner .btn {
+        width: 100%;
+    }
+}

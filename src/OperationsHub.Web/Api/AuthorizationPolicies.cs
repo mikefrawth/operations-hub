@@ -5,4 +5,5 @@ namespace OperationsHub.Web.Api;
 public static class AuthorizationPolicies
 {
     public const string Administrator = RoleNames.Administrator;
+    public const string AdministratorImpersonation = "DevelopmentAdministratorImpersonation";
 }

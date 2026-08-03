@@ -1,0 +1,91 @@
+@page "/administration/impersonation"
+@attribute [Authorize(Policy = AuthorizationPolicies.AdministratorImpersonation)]
+@inject IAdministratorImpersonationService ImpersonationService
+
+<PageTitle>Test as another user</PageTitle>
+
+<div class="py-4">
+    <p class="text-uppercase text-primary fw-semibold mb-2">Administration</p>
+    <h1>Test as another user</h1>
+    <p class="text-body-secondary col-lg-8">
+        Start a temporary session with another Development user’s permissions.
+        Administrator accounts are excluded, and a banner will remain visible until you return.
+    </p>
+
+    @if (Error == "invalid-target")
+    {
+        <div class="alert alert-danger" role="alert">
+            That user is no longer available for testing. Refresh the list and try again.
+        </div>
+    }
+
+    @if (targets is null)
+    {
+        <p class="text-body-secondary">Loading available users…</p>
+    }
+    else if (targets.Count == 0)
+    {
+        <div class="alert alert-info" role="status">
+            No active non-administrator users are available.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm col-xl-9">
+            <div class="card-body">
+                <h2 class="h4">Available test profiles</h2>
+                <p class="text-body-secondary">
+                    The new session will use only the selected user’s role and access rules.
+                </p>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">User</th>
+                                <th scope="col">Role</th>
+                                <th scope="col">
+                                    <span class="visually-hidden">Action</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var target in targets)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">@target.DisplayName</div>
+                                        <div class="small text-body-secondary">@target.Email</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge text-bg-secondary">@target.Role</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <form method="post" action="/administrator-impersonation/start">
+                                            <AntiforgeryToken />
+                                            <input type="hidden" name="TargetUserId" value="@target.UserId" />
+                                            <button class="btn btn-sm btn-primary" type="submit">
+                                                Test as this user
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ImpersonationTargetDto>? targets;
+
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? Error { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        targets = await ImpersonationService.GetEligibleTargetsAsync(CancellationToken.None);
+    }
+}
