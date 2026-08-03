@@ -55,6 +55,8 @@ Open `http://localhost:5090`. Compose builds the ASP.NET Core image, starts MySQ
 
 After the image has been built, start the complete application again with `docker compose up --detach`. Add `--build` whenever the application source or Dockerfile changes. No local .NET SDK or `eng\dotnet` command is required for this Docker workflow.
 
+Restarting Docker Desktop or existing containers does not rebuild the application image. After changing C#, Razor, or CSS files, run `docker compose up --build --detach web` so the web container includes the latest source and static assets.
+
 Use `cp .env.example .env` instead of `Copy-Item` on Linux, macOS, or WSL. Stop the stack with `docker compose down`. The named database and Data Protection volumes survive normal shutdown.
 
 If the browser reports an empty response, first run `docker info` to confirm that the Docker daemon is running. Then run `docker compose ps` and `docker compose logs web`. The `web` service must remain `Up` and become `healthy`; a `Restarting` status means startup failed and the logs contain the underlying error. If MySQL is still starting, wait until `docker compose ps` reports it as `healthy` before investigating the web logs.
