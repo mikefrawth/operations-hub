@@ -211,7 +211,7 @@ Production deployments should run this mode as a one-shot release task before st
 
 Development-only Requester, Technician, Manager, and Administrator accounts are created at Development startup with password `OperationsHub!2026`. They have lockout enabled and are never part of the current EF model seed. See [docs/database.md](docs/database.md) for their email addresses. These public credentials are suitable only for an isolated local environment.
 
-After signing in as the Administrator, open **Test as another user** in the navigation to assume a Requester, Technician, or Manager profile without entering another password. A yellow banner identifies the effective profile on every page and returns to the original administrator in one click. Start and end transitions are audited. This feature is mapped and authorized only in Development.
+After signing in as the Administrator, open **Test as another user** in the navigation to assume a Requester, Technician, or Manager profile without entering another password. A yellow banner stays at the top of the screen, identifies the effective profile on every page, and returns to the original administrator in one click. Signing out during a test session signs out the tested profile instead of restoring the administrator. Start and end transitions are audited. This feature is mapped and authorized only in Development.
 
 ## API antiforgery
 

@@ -48,10 +48,14 @@ public static class AuthenticationEndpoints
         return Results.Redirect(GetSafeReturnUrl(input.ReturnUrl));
     }
 
-    private static async Task<IResult> SignOutAsync(SignInManager<ApplicationUser> signInManager)
+    private static async Task<IResult> SignOutAsync(
+        HttpContext context,
+        SignInManager<ApplicationUser> signInManager)
     {
+        var isImpersonating = context.User.HasClaim(
+            claim => claim.Type == ImpersonationClaimTypes.OriginalAdministratorId);
         await signInManager.SignOutAsync();
-        return Results.Redirect("/");
+        return Results.Redirect(isImpersonating ? "/sign-in" : "/");
     }
 
     private static IResult IssueAntiforgeryToken(HttpContext context, IAntiforgery antiforgery)
