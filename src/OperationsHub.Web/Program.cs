@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -91,6 +92,13 @@ if (trustForwardedHeaders)
 
 app.UseExceptionHandler(exceptionHandlerApp => exceptionHandlerApp.Run(async context =>
 {
+    var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    LogUnhandledRequestFailure(
+        app.Logger,
+        exception,
+        context.Request.Method,
+        context.Request.Path.Value ?? "/");
+
     if (context.Request.Path.StartsWithSegments("/api"))
     {
         await Results.Problem(statusCode: StatusCodes.Status500InternalServerError).ExecuteAsync(context);
@@ -159,6 +167,16 @@ app.Run();
 
 public partial class Program
 {
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Error,
+        Message = "Unhandled request failure for {RequestMethod} {RequestPath}.")]
+    private static partial void LogUnhandledRequestFailure(
+        ILogger logger,
+        Exception? exception,
+        string requestMethod,
+        string requestPath);
+
     [LoggerMessage(
         EventId = 1000,
         Level = LogLevel.Information,
