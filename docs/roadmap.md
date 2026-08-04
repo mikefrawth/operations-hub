@@ -129,9 +129,14 @@ Implemented in this increment:
 
 Remaining:
 
-- CI pipeline
-- Build, test, publish, deployment, smoke-test, and rollback stages
+- Provider-specific deployment, smoke-test, and rollback stages
 - Verified provider-specific application/MySQL configuration and environment-based secrets
+
+Implemented in this increment:
+
+- GitHub Actions quality gate: restore, build, test, and formatting verification for pull requests and `main`
+- Docker Compose build, readiness/liveness, public-route, static-asset, and migration-only smoke test
+- Successful `main` builds publish immutable SHA-tagged images to GitHub Container Registry
 
 Container increment verification:
 

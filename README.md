@@ -6,7 +6,7 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**Milestone 5 engineering hardening is in progress, with the Milestone 6 container-delivery foundation implemented.**
+**Milestone 6 is in progress: local container delivery and GitHub Actions verification/image publication are implemented; provider-specific deployment remains pending.**
 
 The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage production image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
 
@@ -20,6 +20,7 @@ The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Developm
 - ASP.NET Core Identity, beginning in Milestone 1
 - xUnit
 - Docker Compose
+- GitHub Actions and GitHub Container Registry
 
 ## Architecture
 

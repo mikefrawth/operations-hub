@@ -106,4 +106,10 @@ For rollback, route traffic back to the retained image. Database migrations shou
 
 Container delivery makes the landing page easy to host at a stable HTTPS URL, but production authentication still needs an explicit decision. Public registration is disabled, and the known Development identities must never be deployed. Before sharing authenticated workflows publicly, add a restricted demo-identity or production identity-provisioning design with abuse controls and disposable data. Until then, a hosted production instance can expose the public landing page while authenticated features remain owner-controlled.
 
-Provider-specific deployment manifests and CI/CD remain Milestone 6 follow-up work. They should be added only after a hosting provider is selected and the documented commands are verified against it.
+## Continuous integration and image publication
+
+The repository's [GitHub Actions workflow](../.github/workflows/ci.yml) runs for every pull request and push to `main`. It restores, builds, tests, and format-checks the solution, then builds the complete Compose stack and verifies readiness, liveness, the landing page, the Blazor framework asset, and migration-only mode. Its cleanup step always collects container logs and removes the disposable stack.
+
+After those gates pass for a `main` push, the workflow publishes the image to GitHub Container Registry as `ghcr.io/<repository>:sha-<commit>` and `latest`. Production releases must use the immutable SHA tag. Configure package visibility in GitHub according to the target platform's pull requirements; no registry or deployment credential is committed to this repository.
+
+Provider-specific deployment manifests remain intentionally unimplemented until a hosting provider is selected. A provider workflow must inject the managed-MySQL connection string and Data Protection key storage configuration, run the immutable image's migration task, deploy the same SHA image, wait for `/health/ready`, and retain the prior SHA image for traffic rollback.
