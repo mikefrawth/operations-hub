@@ -42,7 +42,7 @@ Owns DbContext, entity configurations, Identity persistence, migrations, MySQL-s
 
 Owns Blazor components, REST endpoints, authentication configuration, middleware, dependency injection, OpenAPI, and safe error handling. It translates transport concerns and delegates business operations to Application.
 
-The host writes structured JSON logs, uses centralized exception handling, returns RFC 7807 Problem Details for API failures, and exposes an anonymous `/health` endpoint backed by the EF Core database check.
+The host writes structured JSON logs, records unhandled request failures with their method and path, uses centralized exception handling, returns RFC 7807 Problem Details for API failures, and exposes an anonymous `/health` endpoint backed by the EF Core database check.
 
 ## Container runtime and delivery
 
