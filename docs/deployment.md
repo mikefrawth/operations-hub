@@ -66,7 +66,7 @@ The image:
 - never initializes Development demo identities during `--migrate`;
 - does not contain a connection string or other embedded secret.
 
-Migration-only mode is verified by CI against the disposable Compose database. It is also retained as a useful capability if the archived hosted design is reconsidered later; no live release currently uses it.
+Migration-only mode is verified by CI against a fresh disposable Compose database before the Development web host starts. CI confirms that migrations succeed without assigning the demo users reusable credentials or roles and without creating the portfolio request. It is also retained as a useful capability if the archived hosted design is reconsidered later; no live release currently uses it.
 
 ## Health endpoints
 
@@ -80,7 +80,7 @@ Use `/health/live` to distinguish a running web process from database availabili
 
 ## Continuous integration and image publication
 
-The repository's [GitHub Actions workflow](../.github/workflows/ci.yml) runs for every pull request and push to `main`. It restores, builds, tests, and format-checks the solution, then builds the complete Compose stack and verifies readiness, liveness, the landing page, the Blazor framework asset, and migration-only mode. Its cleanup step always collects container logs and removes the disposable stack.
+The repository's [GitHub Actions workflow](../.github/workflows/ci.yml) runs for every pull request and push to `main`. It provisions MySQL for the real-database integration tests, then restores, builds, tests, and format-checks the solution. The dependent container job builds the web image, starts a fresh Compose database, runs migration-only mode, verifies that Development demo initialization did not occur, starts the web host, and checks readiness, liveness, the landing page, and the Blazor framework asset. Its cleanup step always collects container logs and removes the disposable stack.
 
 After those gates pass for a `main` push, the workflow publishes the image to GitHub Container Registry as `ghcr.io/<repository>:sha-<commit>` and `latest`. This is build-artifact publication, not deployment: no hosted environment consumes the image, and the workflow has no Azure credential, ACR, OIDC deployment, or live-environment step.
 

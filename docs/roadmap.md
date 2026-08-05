@@ -141,7 +141,7 @@ Implemented local-delivery scope:
 - Full local Docker Compose stack implemented for the web host, MySQL, health-based startup, and persistent Data Protection keys
 - Explicit one-shot migration mode implemented without Development demo initialization
 - GitHub Actions quality gate: restore, build, test, and formatting verification for pull requests and `main`
-- Docker Compose build, readiness/liveness, public-route, static-asset, and migration-only smoke test
+- Docker Compose build, readiness/liveness, public-route, static-asset, and fresh-database migration-only smoke test with demo-data isolation verification
 - Successful `main` builds publish immutable SHA-tagged build artifacts to GitHub Container Registry; publication is not a live deployment
 - Supported portfolio demonstration documented for local Docker Compose, with an optional scheduled Cloudflare Quick Tunnel and recorded-walkthrough backup
 

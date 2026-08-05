@@ -6,7 +6,7 @@ The repository has a reproducible Docker image, a local Compose demonstration, a
 
 ## Decision
 
-GitHub Actions runs the .NET restore, build, test, and formatting gates for every pull request and push to `main`. A dependent job builds the full Compose stack, waits for database-backed readiness, checks the liveness endpoint, landing page, Blazor framework asset, and runs the image's `--migrate` mode. Only a successful push to `main` publishes the built image to GitHub Container Registry with both `sha-<commit>` and `latest` tags.
+GitHub Actions runs the .NET restore, build, real-MySQL integration tests, and formatting gates for every pull request and push to `main`. A dependent job builds the web image, starts a fresh Compose database, runs the image's `--migrate` mode, and verifies that the migration path did not create reusable demo credentials, demo role assignments, or the Development portfolio request. It then starts the Development web host, waits for database-backed readiness, and checks the liveness endpoint, landing page, and Blazor framework asset. Only a successful push to `main` publishes the built image to GitHub Container Registry with both `sha-<commit>` and `latest` tags.
 
 Image publication is artifact delivery only, not a deployment. No workflow provisions or updates a hosted environment, and no workflow may require Azure credentials, ACR, GitHub OIDC deployment, or a live environment while [decision 0011](0011-local-portfolio-demonstration.md) remains active.
 

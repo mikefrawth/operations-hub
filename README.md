@@ -171,11 +171,11 @@ Warnings and recommended analyzer findings fail the build.
 
 On Linux, macOS, or WSL, replace `.\eng\dotnet.cmd` with `./eng/dotnet.sh`.
 
-The integration test project uses real MySQL. For native test runs, start the disposable database with `docker compose up -d mysql` first; GitHub Actions provisions the same MySQL 8.4 service on port `3307` before running the solution tests.
+The integration test project uses real MySQL. For native test runs, start the disposable database with `docker compose up -d mysql` first; GitHub Actions provisions the same MySQL 8.4 service on port `3307` before running the solution tests. CI also exercises migration-only mode against a fresh database before Development startup and verifies that it does not create reusable demo credentials, demo role assignments, or the portfolio request.
 
 ### Verified Windows-native commands
 
-The following commands completed successfully in native Windows PowerShell on 2026-07-29. In Codex, the wrapper detects `CODEX_CI` or `CODEX_THREAD_ID`, disables build servers, and uses one MSBuild node to avoid sandbox IPC limitations.
+The native .NET commands below were reverified successfully in Windows PowerShell on 2026-08-05. In Codex, the wrapper detects `CODEX_CI` or `CODEX_THREAD_ID`, disables build servers, and uses one MSBuild node to avoid sandbox IPC limitations.
 
 ```powershell
 .\eng\dotnet.cmd restore OperationsHub.sln --verbosity minimal
@@ -189,7 +189,7 @@ docker compose ps
 docker compose run --rm web --migrate
 ```
 
-The build completed with zero warnings and errors, all 22 tests passed, and formatting required no further changes. The web image built successfully, both Compose services reported healthy, migration-only mode completed, `/health/live` and `/health/ready` returned HTTP `200`, and the containerized landing page loaded at `http://localhost:5090`.
+The build completed with zero warnings and errors, all 30 tests passed, and formatting required no further changes. The container sequence was reverified in an isolated Compose project: the web image built successfully; migration-only mode completed against a fresh database without creating reusable demo credentials, demo role assignments, or the portfolio request; both services reported healthy; `/health/live` and `/health/ready` returned HTTP `200`; and the landing page and Blazor framework asset loaded successfully.
 
 ## Database migrations and seed data
 
@@ -210,7 +210,7 @@ The container image also provides a migration-only mode that does not start the 
 docker compose run --rm web --migrate
 ```
 
-CI verifies this mode against the disposable Compose database. The archived hosting design retained it as a possible one-shot schema migration mechanism, but no live release currently uses it.
+CI verifies this mode against a fresh disposable Compose database before Development startup. The archived hosting design retained it as a possible one-shot schema migration mechanism, but no live release currently uses it.
 
 ## Demo accounts
 
