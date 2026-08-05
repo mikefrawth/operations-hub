@@ -72,6 +72,7 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
         services.AddScoped<IReferenceDataStore, EntityFrameworkReferenceDataStore>();
         services.AddScoped<IServiceRequestStore, EntityFrameworkServiceRequestStore>();
         services.AddScoped<ITechnicianDirectory, EntityFrameworkTechnicianDirectory>();
+        services.AddScoped<IUserDisplayDirectory, EntityFrameworkUserDisplayDirectory>();
         services.AddScoped<IImpersonationStore, EntityFrameworkImpersonationStore>();
 
         return services;

@@ -1,6 +1,7 @@
 @page "/requests/open-summary"
 @attribute [Authorize(Roles = "Manager,Administrator")]
 @inject IServiceRequestWorkflowService RequestService
+@inject IUserDisplayDirectory UserDirectory
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Open request summary</PageTitle>
@@ -26,13 +27,14 @@
     {
         <div class="table-responsive">
             <table class="table table-hover align-middle">
+                <caption class="visually-hidden">Open requests from the MySQL reporting view.</caption>
                 <thead><tr><th scope="col">Request</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Assignee</th><th scope="col">Age</th><th scope="col">Updated</th></tr></thead>
                 <tbody>
                     @foreach (var summary in summaries)
                     {
                         <tr>
                             <td><a href="requests/@summary.Id">@summary.RequestNumber</a><br /><span class="small text-body-secondary">@summary.Title</span></td>
-                            <td>@summary.Status</td><td>@summary.Priority</td><td class="text-break">@(summary.AssigneeId ?? "Unassigned")</td>
+                            <td>@ServiceRequestDisplay.Status(summary.Status)</td><td>@summary.Priority</td><td class="text-break">@DisplayUser(summary.AssigneeId)</td>
                             <td>@FormatAge(summary.Age)</td><td>@summary.UpdatedAtUtc.LocalDateTime.ToString("g")</td>
                         </tr>
                     }
@@ -44,6 +46,7 @@
 
 @code {
     private IReadOnlyList<OpenRequestSummaryDto>? summaries;
+    private IReadOnlyDictionary<string, string> userDisplayNames = new Dictionary<string, string>();
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
@@ -52,9 +55,23 @@
         var role = principal.IsInRole("Administrator") ? RequestActorRole.Administrator : RequestActorRole.Manager;
         var actor = new RequestActor(principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."), role);
         var result = await RequestService.GetOpenRequestSummariesAsync(actor, CancellationToken.None);
-        if (result.Succeeded) summaries = result.Value;
+        if (result.Succeeded)
+        {
+            summaries = result.Value;
+            var userIds = summaries!
+                .SelectMany(summary => new[] { summary.RequesterId, summary.AssigneeId })
+                .OfType<string>()
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            userDisplayNames = (await UserDirectory.GetByIdsAsync(userIds, CancellationToken.None))
+                .ToDictionary(user => user.Id, user => user.DisplayName, StringComparer.Ordinal);
+        }
         else errorMessage = "The open-request summary is unavailable.";
     }
+
+    private string DisplayUser(string? userId) => userId is null
+        ? "Unassigned"
+        : userDisplayNames.GetValueOrDefault(userId, userId);
 
     private static string FormatAge(TimeSpan age) => age.TotalDays >= 1 ? $"{(int)age.TotalDays}d {age.Hours}h" : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h {age.Minutes}m" : $"{Math.Max(0, (int)age.TotalMinutes)}m";
 }

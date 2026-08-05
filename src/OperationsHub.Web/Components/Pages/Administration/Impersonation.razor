@@ -39,6 +39,7 @@
                 </p>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
+                        <caption class="visually-hidden">Development users eligible for administrator testing.</caption>
                         <thead>
                             <tr>
                                 <th scope="col">User</th>
@@ -63,7 +64,7 @@
                                         <form method="post" action="/administrator-impersonation/start">
                                             <AntiforgeryToken />
                                             <input type="hidden" name="TargetUserId" value="@target.UserId" />
-                                            <button class="btn btn-sm btn-primary" type="submit">
+                                            <button class="btn btn-sm btn-primary" type="submit" aria-label="@($"Test as {target.DisplayName}")">
                                                 Test as this user
                                             </button>
                                         </form>

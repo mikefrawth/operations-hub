@@ -6,9 +6,9 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**The local-delivery scope of Milestone 6 is implemented. Azure and all other live-production hosting work is Archived / not currently planned; it was deferred to avoid ongoing cloud costs for a portfolio project.**
+**Milestones 0–5 and the active local-delivery scope of Milestone 6 are complete. Azure and all other live-production hosting work is Archived / not currently planned; it was deferred to avoid ongoing cloud costs for a portfolio project.**
 
-The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage Linux image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
+The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, search, filter, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained with participant display names. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage Linux image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
 
 ## Technology
 
@@ -233,7 +233,7 @@ The reference-data API uses the same cookie authentication as the Blazor UI. Aft
 | Service-request workflow and REST API | Implemented in Milestone 3 |
 | Reporting view, stored procedure, and concurrency | Implemented in Milestone 4 |
 | Development administrator impersonation | Implemented in Milestone 5 |
-| Engineering hardening | In progress in Milestone 5 |
+| Engineering hardening | Completed in Milestone 5 |
 | Container delivery | Dockerfile and full Compose stack implemented for Milestone 6 |
 | CI and local container verification | Implemented in Milestone 6 |
 | Azure or other live-production hosting | **Archived / not currently planned** to avoid ongoing portfolio-project cloud costs |
@@ -242,7 +242,15 @@ See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
 
 ## Screenshots
 
-Screenshots will be added after visual polish. The current UI is intentionally restrained and includes the service-request workflow plus the manager/administrator open-request summary.
+The Development portfolio scenario demonstrates an assigned request with status, comments, assignment history, and role-aware controls.
+
+![Service request detail with workflow and participant history](docs/images/service-request-detail.png)
+
+The Manager reporting view is backed by `vw_open_request_summary` and resolves assignee display names without exposing Identity persistence to the UI.
+
+![Open request summary viewed through administrator impersonation](docs/images/open-request-summary.png)
+
+See the [Milestone 5 engineering-hardening review](docs/engineering-hardening-review.md) for the completed security, accessibility, performance, test, and browser-verification checks.
 
 ## Portfolio demonstration
 
@@ -285,7 +293,7 @@ The former Azure/live-production plan is preserved only as an archived future op
 - The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and a non-Development identity provider are outside the active portfolio scope.
 - Administrator impersonation is Development-only and accepts only active accounts with exactly one Requester, Technician, or Manager role. A non-Development support impersonation path is intentionally not implemented.
 - Managers and administrators can assign requests only to active technicians selected from the technician directory.
-- Development startup creates a deterministic open service request so the service-request and open-request-summary pages have populated-data coverage for local demonstrations.
+- Development startup creates a deterministic in-progress request assigned to the demo Technician, with comments, status history, assignment history, and audit events so every permitted role has a populated local demonstration path.
 - The unauthenticated `/health` and `/health/ready` endpoints check database connectivity; `/health/live` checks only whether the web process can serve requests. The host writes structured JSON logs and returns safe error responses through centralized exception handling.
 - Compose intentionally runs the web host in `Development` for disposable local demonstrations. Migration-only mode never initializes the public demo identities.
 - Compose stores unencrypted Data Protection keys in a private local named volume for restart-stable demo sessions; this local configuration must not become a persistent public environment.
