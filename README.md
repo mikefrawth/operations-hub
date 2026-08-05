@@ -171,6 +171,8 @@ Warnings and recommended analyzer findings fail the build.
 
 On Linux, macOS, or WSL, replace `.\eng\dotnet.cmd` with `./eng/dotnet.sh`.
 
+The integration test project uses real MySQL. For native test runs, start the disposable database with `docker compose up -d mysql` first; GitHub Actions provisions the same MySQL 8.4 service on port `3307` before running the solution tests.
+
 ### Verified Windows-native commands
 
 The following commands completed successfully in native Windows PowerShell on 2026-07-29. In Codex, the wrapper detects `CODEX_CI` or `CODEX_THREAD_ID`, disables build servers, and uses one MSBuild node to avoid sandbox IPC limitations.
