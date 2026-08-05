@@ -13,4 +13,4 @@ Use a .NET 10 Blazor Web App with global Interactive Server rendering. Keep busi
 
 ## Consequences
 
-The browser receives a small initial payload and security/data access stay centralized. Each active user requires a server circuit, transient connectivity affects interaction, and multi-instance deployment must account for circuit affinity or an appropriate scale-out design.
+The browser receives a small initial payload and security/data access stay centralized. Each active user requires a server circuit, and transient connectivity affects interaction. If the **Archived / not currently planned** hosted option is ever reactivated with multiple instances, it must account for circuit affinity or an appropriate scale-out design.

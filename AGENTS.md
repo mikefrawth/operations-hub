@@ -110,6 +110,8 @@ Do not claim a command is verified unless it completed successfully in the curre
 - Update the README, relevant documents, roadmap, ER diagram, and nearest `AGENTS.md` whenever behavior, commands, dependencies, or architecture changes.
 - Record consequential decisions in `docs/decisions`.
 - Document exact verified setup and migration commands and state limitations honestly.
+- Treat Azure and all other live-production hosting as **Archived / not currently planned** to avoid ongoing portfolio-project cloud costs. Do not present it as a prerequisite, pending milestone, deployment step, or definition-of-done item.
+- Keep Docker Compose as the supported full-application demonstration. A scheduled remote demo may use only a temporary Cloudflare Quick Tunnel to the local web port, with the URL shared narrowly and the tunnel stopped immediately afterward.
 
 ## Definition of done
 

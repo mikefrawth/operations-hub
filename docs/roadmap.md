@@ -2,6 +2,8 @@
 
 The project advances through verified increments. A milestone is complete only when its implementation, authorization/validation where applicable, tests, documentation, and build are all current.
 
+Across every milestone, Azure and all other live-production hosting work is **Archived / not currently planned**. It was deferred to avoid ongoing cloud costs for a portfolio project and is not a prerequisite, next milestone, required deployment step, exit gate, or definition-of-done item. The active demonstration path is the complete local Docker Compose stack; a scheduled remote demo may temporarily expose only the local web port through a Cloudflare Quick Tunnel, with a recorded walkthrough kept as backup.
+
 ## Milestone 0 — repository foundation
 
 Status: **complete (2026-07-28)**
@@ -67,7 +69,7 @@ Exit gate passed:
 - Request-type descriptions are optional and capped at 500 characters.
 - Deactivation preserves records for historical relationships and removes them from active-only queries.
 - Unit coverage verifies validation, duplicate rejection, and deactivation; the MySQL integration test verifies create, list, and deactivation inside a rolled-back transaction.
-- The follow-up review verified that production configuration requires an externally supplied connection string, migration-only deployments do not leave usable demo credentials, API `401`/`403` responses remain API responses, and security metadata is present on protected endpoints.
+- The follow-up review verified that non-Development configuration requires an externally supplied connection string, migration-only runs do not leave usable demo credentials, API `401`/`403` responses remain API responses, and security metadata is present on protected endpoints.
 
 ## Milestone 3 — service-request workflow
 
@@ -116,27 +118,28 @@ Status: **in progress (2026-07-29)**
 - Seeded portfolio scenario and UI verification that populated service-request and open-request-summary views render their data for each permitted role
 - Screenshots and implementation-driven cleanup
 
-## Milestone 6 — CI/CD and deployment
+## Milestone 6 — local container delivery and continuous verification
 
-Status: **in progress (container foundation implemented 2026-07-29)**
+Status: **local scope implemented; live hosting Archived / not currently planned (2026-08-03)**
 
-Implemented in this increment:
+Implemented local-delivery scope:
 
-- Production Dockerfile implemented with pinned build/runtime images, a non-root runtime, and a health check
+- Dockerfile implemented with pinned build/runtime images, a non-root runtime, and a health check
 - Full local Docker Compose stack implemented for the web host, MySQL, health-based startup, and persistent Data Protection keys
-- Explicit one-shot production migration mode implemented without Development demo initialization
-- Container, managed-MySQL, ingress, secrets, health-probe, release, smoke-test, and rollback contract documented
-
-Remaining:
-
-- Provider-specific deployment, smoke-test, and rollback stages
-- Verified provider-specific application/MySQL configuration and environment-based secrets
-
-Implemented in this increment:
-
+- Explicit one-shot migration mode implemented without Development demo initialization
 - GitHub Actions quality gate: restore, build, test, and formatting verification for pull requests and `main`
 - Docker Compose build, readiness/liveness, public-route, static-asset, and migration-only smoke test
-- Successful `main` builds publish immutable SHA-tagged images to GitHub Container Registry
+- Successful `main` builds publish immutable SHA-tagged build artifacts to GitHub Container Registry; publication is not a live deployment
+- Supported portfolio demonstration documented for local Docker Compose, with an optional scheduled Cloudflare Quick Tunnel and recorded-walkthrough backup
+
+Archived hosted scope — retained only as a possible future design:
+
+- Azure resource provisioning, Azure Container Registry, Container Apps, and Azure Database for MySQL
+- Private VNet networking and Azure Files or another protected shared Data Protection key store
+- GitHub OIDC deployment, live-environment secrets, hosted smoke tests, and production rollback
+- Any equivalent provider-specific public hosting environment
+
+This archived scope was deferred to avoid ongoing cloud costs for a portfolio project. It is neither pending Milestone 6 work nor required for milestone completion. No workflow may require Azure credentials, ACR, or a live Azure environment while this decision remains active.
 
 Container increment verification:
 

@@ -1,4 +1,10 @@
-# Container delivery and deployment
+# Local container delivery and portfolio demonstrations
+
+## Current hosting status
+
+Azure and all other live-production hosting work is **Archived / not currently planned**. The hosted plan was deferred to avoid ongoing cloud costs for a portfolio project. It is not a prerequisite, a pending milestone, a required release step, or part of the definition of done.
+
+Docker Compose is the supported way to run the complete application, including MySQL. A scheduled remote demonstration may temporarily expose the locally running web port through a Cloudflare Quick Tunnel. No repository workflow requires Azure credentials, Azure Container Registry (ACR), GitHub OIDC deployment, or a live environment.
 
 ## Local portfolio demonstration
 
@@ -12,15 +18,33 @@ docker compose ps
 
 Use `cp .env.example .env` on Linux, macOS, or WSL. Open `http://localhost:5090`. The `web` service waits for healthy MySQL, then Development startup applies EF Core migrations and initializes the disposable demo identities and portfolio scenario.
 
-The Compose stack is intentionally local-only:
+The Compose stack is local and disposable by design:
 
 - `ASPNETCORE_ENVIRONMENT` is `Development`.
-- MySQL and web ports are published to the host.
+- The web container maps `${APP_PORT:-5090}` on the host to container port `8080`.
 - `.env.example` contains known development credentials.
 - TLS is disabled for the private Compose database connection, which explicitly allows MySQL public-key retrieval for the Development-only credentials.
 - Data Protection keys are unencrypted files inside a private local named volume.
 
-Do not expose this configuration to the internet. `docker compose down` stops the stack while preserving the named volumes. `docker compose down --volumes` also removes the database and Data Protection keys.
+Do not publish this environment or its credentials. `docker compose down` stops the stack while preserving the named volumes. `docker compose down --volumes` also removes the database and Data Protection keys.
+
+## Temporary scheduled remote demonstration
+
+After both Compose services are healthy and `http://localhost:5090/health/ready` succeeds, start a Cloudflare Quick Tunnel in a separate terminal:
+
+```bash
+cloudflared tunnel --url http://localhost:5090
+```
+
+If `APP_PORT` overrides the default, use the mapped host port:
+
+```text
+cloudflared tunnel --url http://localhost:<web-port>
+```
+
+Share the generated random `https://...trycloudflare.com` URL only with the scheduled attendees. The tunnel is not a production deployment: it has no uptime guarantee, the URL changes on restart, and it works only while the demo laptop remains awake with Docker Compose and `cloudflared` running. Do not tunnel MySQL, publish the URL, share sensitive configuration, or leave Development-only accounts exposed beyond the controlled session.
+
+Keep a short recorded walkthrough as a backup. Immediately after the demo, stop `cloudflared` with <kbd>Ctrl</kbd>+<kbd>C</kbd> and run `docker compose down`.
 
 ## Image contract
 
@@ -40,21 +64,33 @@ The image:
 - provides a Docker health check that verifies `/health/live` and the Blazor framework script;
 - accepts `--migrate` after the image name to apply EF migrations and exit;
 - never initializes Development demo identities during `--migrate`;
-- does not contain a connection string or other deployment secret.
+- does not contain a connection string or other embedded secret.
+
+Migration-only mode is verified by CI against the disposable Compose database. It is also retained as a useful capability if the archived hosted design is reconsidered later; no live release currently uses it.
 
 ## Health endpoints
 
 | Endpoint | Purpose | Dependency |
 | --- | --- | --- |
 | `/health/live` | Container liveness | Web process only |
-| `/health/ready` | Traffic readiness | MySQL connectivity |
+| `/health/ready` | Local/CI readiness | MySQL connectivity |
 | `/health` | Backward-compatible aggregate check | MySQL connectivity |
 
-Use `/health/live` for a liveness probe and `/health/ready` for a readiness or post-deployment smoke test. Restarting a healthy web process cannot repair an unavailable database, so the liveness probe deliberately excludes MySQL. Production HTTPS redirection excludes `/health` paths so an orchestrator can probe the container's internal HTTP port; public application paths still redirect.
+Use `/health/live` to distinguish a running web process from database availability. Use `/health/ready` before a local or temporary remote demonstration and in the Compose smoke test. Restarting a healthy web process cannot repair an unavailable database, so liveness deliberately excludes MySQL.
 
-## Production deployment contract
+## Continuous integration and image publication
 
-The recommended public architecture is one web container revision behind a managed HTTPS ingress and a managed MySQL 8.x database:
+The repository's [GitHub Actions workflow](../.github/workflows/ci.yml) runs for every pull request and push to `main`. It restores, builds, tests, and format-checks the solution, then builds the complete Compose stack and verifies readiness, liveness, the landing page, the Blazor framework asset, and migration-only mode. Its cleanup step always collects container logs and removes the disposable stack.
+
+After those gates pass for a `main` push, the workflow publishes the image to GitHub Container Registry as `ghcr.io/<repository>:sha-<commit>` and `latest`. This is build-artifact publication, not deployment: no hosted environment consumes the image, and the workflow has no Azure credential, ACR, OIDC deployment, or live-environment step.
+
+## Archived hosted-production option
+
+**Status: Archived / not currently planned.** This material is retained only as architecture context in case cost and project goals change. It does not describe active resources or pending implementation.
+
+The archived scope included Azure resource provisioning, ACR, Container Apps, Azure Database for MySQL, private VNet networking, Azure Files or another protected Data Protection key store, GitHub OIDC deployment, hosted smoke tests, and production rollback. No such resources are represented as active, and no setup instructions or credentialed deployment workflow are maintained.
+
+The provider-neutral shape considered by that design was:
 
 ```mermaid
 flowchart LR
@@ -62,54 +98,7 @@ flowchart LR
     Ingress --> Web["OperationsHub web container"]
     Release["One-shot migration task"] --> MySQL["Managed MySQL 8.x"]
     Web --> MySQL
-    Web --> Keys["Persistent Data Protection keys"]
+    Web --> Keys["Protected shared Data Protection keys"]
 ```
 
-Configure these values through the hosting platform, not a committed file:
-
-| Setting | Requirement |
-| --- | --- |
-| `ASPNETCORE_ENVIRONMENT=Production` | Enables production error handling, HSTS, and HTTPS redirection |
-| `ASPNETCORE_HTTP_PORTS=8080` | Matches the image's exposed HTTP port |
-| `ConnectionStrings__OperationsHub` | Secret managed-MySQL connection string with deployment-appropriate TLS |
-| `DataProtection__KeysPath` | Mounted persistent path, such as `/var/lib/operationshub/keys`, backed by encrypted storage |
-| `ReverseProxy__TrustForwardedHeaders=true` | Only when a trusted ingress is the container's sole network path |
-
-The forwarded-header option trusts the ingress-provided client IP and scheme headers. Enable it only when direct container access is blocked and the ingress removes untrusted forwarded headers. This allows HTTPS redirection, secure cookies, and rate limiting to observe the original public request correctly.
-
-The filesystem key path is appropriate for a single replica or genuinely shared persistent storage when the platform encrypts that storage at rest and limits access to the application identity. For stronger key protection or multiple replicas, use a platform-specific external Data Protection provider; all replicas must share the same protected key ring or authentication cookies will fail when requests move between them. Interactive Server also requires WebSocket support and, for multiple replicas, session affinity or an intentional scale-out design. Start with one replica for the portfolio deployment.
-
-## Release sequence
-
-Build and tag an immutable image once. Use that exact image for both migration and web deployment.
-
-1. Back up the managed database and retain the currently running image tag.
-2. Run the new image as a one-shot task with `--migrate` and the production connection-string secret.
-3. Start or update the web service with the same image digest.
-4. Wait for `/health/ready`, then smoke-test the landing page and an authenticated workflow.
-5. Route public traffic to the new revision.
-
-A generic migration invocation is:
-
-```bash
-docker run --rm \
-  --env ASPNETCORE_ENVIRONMENT=Production \
-  --env 'ConnectionStrings__OperationsHub=<managed-secret-value>' \
-  operationshub-web:<immutable-tag> --migrate
-```
-
-Use the platform's secret injection and one-shot job facility instead of putting the real value in shell history. The migration task exits nonzero if migration fails, preventing deployment from continuing.
-
-For rollback, route traffic back to the retained image. Database migrations should remain backward-compatible with the previous application revision; do not automatically reverse a production migration. Restore a tested backup only when a forward fix is not safe.
-
-## Public portfolio access
-
-Container delivery makes the landing page easy to host at a stable HTTPS URL, but production authentication still needs an explicit decision. Public registration is disabled, and the known Development identities must never be deployed. Before sharing authenticated workflows publicly, add a restricted demo-identity or production identity-provisioning design with abuse controls and disposable data. Until then, a hosted production instance can expose the public landing page while authenticated features remain owner-controlled.
-
-## Continuous integration and image publication
-
-The repository's [GitHub Actions workflow](../.github/workflows/ci.yml) runs for every pull request and push to `main`. It restores, builds, tests, and format-checks the solution, then builds the complete Compose stack and verifies readiness, liveness, the landing page, the Blazor framework asset, and migration-only mode. Its cleanup step always collects container logs and removes the disposable stack.
-
-After those gates pass for a `main` push, the workflow publishes the image to GitHub Container Registry as `ghcr.io/<repository>:sha-<commit>` and `latest`. Production releases must use the immutable SHA tag. Configure package visibility in GitHub according to the target platform's pull requirements; no registry or deployment credential is committed to this repository.
-
-Provider-specific deployment manifests remain intentionally unimplemented until a hosting provider is selected. A provider workflow must inject the managed-MySQL connection string and Data Protection key storage configuration, run the immutable image's migration task, deploy the same SHA image, wait for `/health/ready`, and retain the prior SHA image for traffic rollback.
+If this option is deliberately reactivated in the future, it would require a new decision and verified implementation for secret-managed TLS database connectivity, trusted proxy boundaries, persistent protected keys, Blazor WebSocket/session behavior, non-Development identity provisioning, backups, health-based release checks, and migration-compatible rollback. The former design contemplated migrating with an immutable image before switching traffic and retaining the previous image for application rollback; these are archived design notes, not current operational steps.

@@ -13,4 +13,4 @@ Use MySQL 8.x, with MySQL 8.4 as the local Compose image. Develop and integratio
 
 ## Consequences
 
-The project can demonstrate MySQL-specific views, procedures, indexing, and query plans. Provider behavior must be tested with MySQL rather than EF Core InMemory, and production deployment needs managed credentials, backups, patching, and least-privilege configuration.
+The project can demonstrate MySQL-specific views, procedures, indexing, and query plans. Provider behavior must be tested with MySQL rather than EF Core InMemory. A managed MySQL service, cloud credential model, backups, and patching belong only to the **Archived / not currently planned** hosted-production option; local Docker Compose is the active database topology.

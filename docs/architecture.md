@@ -46,7 +46,7 @@ The host writes structured JSON logs, records unhandled request failures with th
 
 ## Container runtime and delivery
 
-The web host is published as one Linux container image through a pinned multi-stage Dockerfile. The same immutable image serves requests normally or runs as a one-shot `--migrate` task. Migration-only mode applies EF Core migrations and exits before the middleware pipeline starts; it does not initialize Development demo identities. This keeps production schema changes in the release workflow rather than racing across web replicas.
+The web host is published as one Linux container image through a pinned multi-stage Dockerfile. The same image serves requests normally or runs as a one-shot `--migrate` task. Migration-only mode applies EF Core migrations and exits before the middleware pipeline starts; it does not initialize Development demo identities. CI verifies this capability against the disposable Compose database, and it remains useful architecture if hosting is reconsidered later.
 
 Docker Compose supplies the local portfolio topology:
 
@@ -59,7 +59,7 @@ flowchart LR
     MySQL --> Data["MySQL data<br/>named volume"]
 ```
 
-The Compose web service runs as a non-root user with a read-only root filesystem, waits for healthy MySQL, and persists Data Protection keys separately from the image. `/health/live` checks only the process; `/health/ready` and the existing `/health` endpoint include database connectivity. A hosted deployment places the image behind trusted HTTPS ingress and uses managed MySQL rather than publishing the Compose database. See [deployment.md](deployment.md) and [decision 0008](decisions/0008-container-delivery-and-explicit-migrations.md).
+The Compose web service runs as a non-root user with a read-only root filesystem, waits for healthy MySQL, and persists Data Protection keys separately from the image. `/health/live` checks only the process; `/health/ready` and the existing `/health` endpoint include database connectivity. Local Docker Compose is the supported application and MySQL topology. For a scheduled remote demo, only host port `5090` may be exposed temporarily through a Cloudflare Quick Tunnel; this is not a hosted production environment. Azure and other live hosting are **Archived / not currently planned** to avoid ongoing portfolio-project cloud costs. See [deployment.md](deployment.md), [decision 0008](decisions/0008-container-delivery-and-explicit-migrations.md), and [decision 0011](decisions/0011-local-portfolio-demonstration.md).
 
 ## Rendering and UI
 
@@ -77,7 +77,7 @@ Milestone 4 retains EF Core for ordinary request operations but demonstrates sel
 
 ASP.NET Core Identity provides Requester, Technician, Manager, and Administrator roles with an HTTP-only, same-site cookie. UI visibility improves usability, while the Web server boundary enforces administrative access. Cookie-authenticated mutation endpoints require antiforgery validation. Sign-in is throttled per remote IP, failed-password attempts lock eligible accounts, and unsafe return URLs are rejected. Public registration is not part of the initial plan.
 
-Fixed demo identities are a Development-only runtime concern. The current EF model seeds stable roles and reference data, but not users or password hashes. The remediation migration disables the historical demo identities for migration-only and non-development deployments; guarded Development startup restores the local demo password and role assignments.
+Fixed demo identities are a Development-only runtime concern. The current EF model seeds stable roles and reference data, but not users or password hashes. The remediation migration disables the historical demo identities for migration-only and non-Development runs; guarded Development startup restores the local demo password and role assignments.
 
 Development administrators can start an audited test session as an active account with exactly one Requester, Technician, or Manager role. The target Identity principal receives only that effective role; protected cookie claims retain the original administrator identity for the persistent return banner. Start and return are antiforgery-protected POST operations, return revalidates the original Administrator role, and neither the endpoints nor navigation are mapped outside Development. Normal workflow audit entries identify the effective target user, while paired impersonation events identify the initiating administrator. See [decision 0009](decisions/0009-development-administrator-impersonation.md).
 
@@ -96,9 +96,9 @@ This mixed approach demonstrates both maintainable application persistence and d
 - MySQL enables substantive relational and SQL work but makes real-container integration tests necessary.
 - Explicit application services add some mapping code but keep UI, persistence, and business rules separated.
 - Soft deactivation preserves history at the cost of consistently filtering active reference data.
-- Development-only impersonation speeds role verification but deliberately does not provide a production support-access path.
+- Development-only impersonation speeds role verification but deliberately does not provide a non-Development support-access path.
 - One immutable container image simplifies delivery, while explicit migrations add a required release step.
 
-## Future scaling path
+## Archived future hosted-scaling option
 
-Scale vertically and with multiple web instances first, accounting for Blazor circuit affinity, shared Data Protection keys, and session affinity or backplane needs. Optimize indexed queries and reporting projections before splitting services. If a module later develops independent ownership, scaling, or deployment requirements, extract it behind an existing Application contract and use an outbox-backed integration boundary rather than sharing database tables.
+**Status: Archived / not currently planned.** If live hosting is deliberately reconsidered in a future decision, scale vertically and with multiple web instances first, accounting for Blazor circuit affinity, shared Data Protection keys, and session affinity or backplane needs. Optimize indexed queries and reporting projections before splitting services. If a module later develops independent ownership, scaling, or deployment requirements, extract it behind an existing Application contract and use an outbox-backed integration boundary rather than sharing database tables.
