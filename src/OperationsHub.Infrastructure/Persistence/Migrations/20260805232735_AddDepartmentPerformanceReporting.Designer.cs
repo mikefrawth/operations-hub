@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OperationsHub.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using OperationsHub.Infrastructure.Persistence;
 namespace OperationsHub.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(OperationsHubDbContext))]
-    partial class OperationsHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260805232735_AddDepartmentPerformanceReporting")]
+    partial class AddDepartmentPerformanceReporting
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

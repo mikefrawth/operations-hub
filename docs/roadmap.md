@@ -164,10 +164,20 @@ Container increment verification:
 
 ## Milestone 7 — reporting and Power BI readiness
 
+Status: **complete (2026-08-05)**
+
 - Department performance, resolution time, volume, and SLA reporting
 - Stable reporting views
-- CSV export or documented Power BI connection
+- CSV export and documented Power BI connection
 - Query and index review
+
+Exit gate passed:
+
+- Managers and administrators can view department volume, open work, completed work, average resolution time, and SLA compliance in the Blazor UI at `/reports/department-performance`.
+- `vw_department_performance` is migration-owned and provides the stable MySQL read model; its outcome measures use the first `Resolved` or `Closed` history event for each request.
+- The browser-authenticated API exposes the report at `GET /api/reports/department-performance` and provides `GET /api/reports/department-performance.csv` for CSV/Power BI import.
+- SLA targets are explicit and consistent across the view, UI, export, and documentation: Critical 4 hours, High 8 hours, Normal 72 hours, and Low 120 hours.
+- The MySQL integration test verifies calculated volume, resolution, and SLA results, while indexes support department/status aggregation and terminal-status lookup.
 
 ## Milestone 8 — advisory request classification
 

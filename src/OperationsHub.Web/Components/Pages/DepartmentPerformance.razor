@@ -1,0 +1,93 @@
+@page "/reports/department-performance"
+@attribute [Authorize(Roles = "Manager,Administrator")]
+@inject IRequestReportingService ReportingService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Department performance</PageTitle>
+
+<div class="py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <p class="text-uppercase text-primary fw-semibold mb-2">Operations reporting</p>
+            <h1>Department performance</h1>
+            <p class="text-body-secondary mb-0">Request volume, active work, resolution time, and completed-request SLA performance by department.</p>
+        </div>
+        <a class="btn btn-outline-primary" href="/api/reports/department-performance.csv">Download CSV</a>
+    </div>
+
+    <p class="small text-body-secondary">SLA targets: Critical 4 hours, High 8 hours, Normal 72 hours, and Low 120 hours. Only requests that reached Resolved or Closed are included in resolution and SLA measures.</p>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@errorMessage</div>
+    }
+    else if (report is null)
+    {
+        <p class="text-body-secondary">Loading department performanceâ€¦</p>
+    }
+    else if (report.Count == 0)
+    {
+        <div class="alert alert-light border" role="status">There are no service requests to report yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <caption>Department performance across all recorded service requests.</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Department</th>
+                        <th scope="col" class="text-end">Volume</th>
+                        <th scope="col" class="text-end">Open</th>
+                        <th scope="col" class="text-end">Completed</th>
+                        <th scope="col" class="text-end">Avg. resolution</th>
+                        <th scope="col" class="text-end">SLA met</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in report)
+                    {
+                        <tr>
+                            <th scope="row">@item.DepartmentName</th>
+                            <td class="text-end">@item.TotalRequests</td>
+                            <td class="text-end">@item.OpenRequests</td>
+                            <td class="text-end">@item.CompletedRequests</td>
+                            <td class="text-end">@FormatHours(item.AverageResolutionHours)</td>
+                            <td class="text-end">@FormatSla(item)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<DepartmentPerformanceDto>? report;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
+        var role = principal.IsInRole("Administrator") ? RequestActorRole.Administrator : RequestActorRole.Manager;
+        var actor = new RequestActor(
+            principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? throw new InvalidOperationException("Authenticated user ID is missing."),
+            role);
+        var result = await ReportingService.GetDepartmentPerformanceAsync(actor, CancellationToken.None);
+        if (result.Succeeded)
+        {
+            report = result.Value;
+        }
+        else
+        {
+            errorMessage = "The department-performance report is unavailable.";
+        }
+    }
+
+    private static string FormatHours(decimal? hours) => hours.HasValue ? $"{hours.Value:0.0} h" : "â€”";
+
+    private static string FormatSla(DepartmentPerformanceDto item) => item.SlaCompliancePercentage.HasValue
+        ? $"{item.SlaMetRequests}/{item.SlaEligibleRequests} ({item.SlaCompliancePercentage.Value:0.0}%)"
+        : "â€”";
+}

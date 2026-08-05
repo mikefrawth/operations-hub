@@ -9,6 +9,7 @@ using OperationsHub.Web.Authentication;
 using OperationsHub.Web.Components;
 using OperationsHub.Application.Impersonation;
 using OperationsHub.Application.ReferenceData;
+using OperationsHub.Application.Reporting;
 using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Persistence;
 
@@ -73,6 +74,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IAdministratorImpersonationService, AdministratorImpersonationService>();
 builder.Services.AddScoped<IReferenceDataAdministrationService, ReferenceDataAdministrationService>();
+builder.Services.AddScoped<IRequestReportingService, RequestReportingService>();
 builder.Services.AddScoped<IServiceRequestWorkflowService, ServiceRequestWorkflowService>();
 builder.Services.AddOperationsHubPersistence(builder.Configuration);
 
@@ -159,6 +161,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 }).AllowAnonymous();
 app.MapAuthenticationEndpoints();
 app.MapReferenceDataEndpoints();
+app.MapReportingEndpoints();
 app.MapServiceRequestEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

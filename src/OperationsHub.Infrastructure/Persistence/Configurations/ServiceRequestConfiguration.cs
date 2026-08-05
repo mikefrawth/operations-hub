@@ -33,6 +33,7 @@ public sealed class ServiceRequestConfiguration : IEntityTypeConfiguration<Servi
         builder.HasIndex(request => request.RequesterId);
         builder.HasIndex(request => request.DepartmentId);
         builder.HasIndex(request => request.AssigneeId);
+        builder.HasIndex(request => new { request.DepartmentId, request.Status, request.CreatedAtUtc });
         builder.HasOne<RequestType>().WithMany().HasForeignKey(request => request.RequestTypeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Department>().WithMany().HasForeignKey(request => request.DepartmentId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.RequesterId).OnDelete(DeleteBehavior.Restrict);

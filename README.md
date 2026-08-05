@@ -6,7 +6,7 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**Milestones 0–5 and the active local-delivery scope of Milestone 6 are complete. Azure and all other live-production hosting work is Archived / not currently planned; it was deferred to avoid ongoing cloud costs for a portfolio project.**
+**Milestones 0–7 are complete. Azure and all other live-production hosting work is Archived / not currently planned; it was deferred to avoid ongoing cloud costs for a portfolio project.**
 
 The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, search, filter, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained with participant display names. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage Linux image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
 
@@ -189,7 +189,7 @@ docker compose ps
 docker compose run --rm web --migrate
 ```
 
-The build completed with zero warnings and errors, all 30 tests passed, and formatting required no further changes. The container sequence was reverified in an isolated Compose project: the web image built successfully; migration-only mode completed against a fresh database without creating reusable demo credentials, demo role assignments, or the portfolio request; both services reported healthy; `/health/live` and `/health/ready` returned HTTP `200`; and the landing page and Blazor framework asset loaded successfully.
+The build completed with zero warnings and errors, all 34 tests passed, and formatting required no further changes. The container sequence was reverified in an isolated Compose project: the web image built successfully; migration-only mode completed against a fresh database without creating reusable demo credentials, demo role assignments, or the portfolio request; both services reported healthy; `/health/live` and `/health/ready` returned HTTP `200`; and the landing page and Blazor framework asset loaded successfully.
 
 ## Database migrations and seed data
 
@@ -236,6 +236,7 @@ The reference-data API uses the same cookie authentication as the Blazor UI. Aft
 | Engineering hardening | Completed in Milestone 5 |
 | Container delivery | Dockerfile and full Compose stack implemented for Milestone 6 |
 | CI and local container verification | Implemented in Milestone 6 |
+| Department performance reporting and CSV export | Implemented in Milestone 7 |
 | Azure or other live-production hosting | **Archived / not currently planned** to avoid ongoing portfolio-project cloud costs |
 
 See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
@@ -246,7 +247,7 @@ The Development portfolio scenario demonstrates an assigned request with status,
 
 ![Service request detail with workflow and participant history](docs/images/service-request-detail.png)
 
-The Manager reporting view is backed by `vw_open_request_summary` and resolves assignee display names without exposing Identity persistence to the UI.
+The Manager reporting view is backed by `vw_open_request_summary` and resolves assignee display names without exposing Identity persistence to the UI. Department performance is available at `/reports/department-performance`, with a browser-authenticated CSV export at `/api/reports/department-performance.csv`.
 
 ![Open request summary viewed through administrator impersonation](docs/images/open-request-summary.png)
 
