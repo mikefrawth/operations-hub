@@ -17,6 +17,7 @@ public sealed class RequestStatusHistoryConfiguration : IEntityTypeConfiguration
         builder.Property(history => history.ChangedById).HasColumnName("changed_by_id").HasMaxLength(255).IsRequired();
         builder.Property(history => history.ChangedAtUtc).HasColumnName("changed_at_utc").HasPrecision(6).IsRequired();
         builder.HasIndex(history => new { history.ServiceRequestId, history.ChangedAtUtc });
+        builder.HasIndex(history => new { history.Status, history.ServiceRequestId, history.ChangedAtUtc });
         builder.HasOne<ServiceRequest>().WithMany().HasForeignKey(history => history.ServiceRequestId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(history => history.ChangedById).OnDelete(DeleteBehavior.Restrict);
     }

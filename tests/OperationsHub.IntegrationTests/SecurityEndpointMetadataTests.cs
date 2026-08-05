@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using OperationsHub.Application.Impersonation;
 using OperationsHub.Application.ReferenceData;
+using OperationsHub.Application.Reporting;
 using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Identity;
 using OperationsHub.Web.Api;
@@ -103,12 +104,27 @@ public sealed class SecurityEndpointMetadataTests
             endpoint => Assert.True(endpoint.Metadata.GetMetadata<IAntiforgeryMetadata>()?.RequiresValidation));
     }
 
+    [Fact]
+    public async Task ReportingEndpointsRequireAuthentication()
+    {
+        await using var app = CreateApplication();
+        app.MapReportingEndpoints();
+
+        var endpoints = GetRouteEndpoints(app)
+            .Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/api/reports", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.Equal(2, endpoints.Count);
+        Assert.All(endpoints, endpoint => Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()));
+    }
+
     private static WebApplication CreateApplication()
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddAntiforgery();
         builder.Services.AddScoped<IReferenceDataAdministrationService>(_ => null!);
         builder.Services.AddScoped<IServiceRequestWorkflowService>(_ => null!);
+        builder.Services.AddScoped<IRequestReportingService>(_ => null!);
         builder.Services.AddScoped<IAdministratorImpersonationService>(_ => null!);
         builder.Services.AddScoped<UserManager<ApplicationUser>>(_ => null!);
         builder.Services.AddScoped<SignInManager<ApplicationUser>>(_ => null!);

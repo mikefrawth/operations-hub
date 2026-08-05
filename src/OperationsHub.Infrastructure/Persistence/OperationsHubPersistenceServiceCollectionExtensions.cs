@@ -6,9 +6,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using OperationsHub.Application.Impersonation;
 using OperationsHub.Application.ReferenceData;
+using OperationsHub.Application.Reporting;
 using OperationsHub.Application.Requests;
 using OperationsHub.Infrastructure.Identity;
 using OperationsHub.Infrastructure.ReferenceData;
+using OperationsHub.Infrastructure.Reporting;
 using OperationsHub.Infrastructure.Requests;
 
 namespace OperationsHub.Infrastructure.Persistence;
@@ -71,6 +73,7 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
 
         services.AddScoped<IReferenceDataStore, EntityFrameworkReferenceDataStore>();
         services.AddScoped<IServiceRequestStore, EntityFrameworkServiceRequestStore>();
+        services.AddScoped<IReportingStore, EntityFrameworkReportingStore>();
         services.AddScoped<ITechnicianDirectory, EntityFrameworkTechnicianDirectory>();
         services.AddScoped<IUserDisplayDirectory, EntityFrameworkUserDisplayDirectory>();
         services.AddScoped<IImpersonationStore, EntityFrameworkImpersonationStore>();

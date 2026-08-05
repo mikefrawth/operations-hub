@@ -91,6 +91,8 @@ EF Core will handle aggregate persistence, relationship mapping, migrations, and
 
 This mixed approach demonstrates both maintainable application persistence and deliberate database capability without forcing ordinary CRUD through procedures.
 
+Milestone 7 introduces `IRequestReportingService` and `IReportingStore` for manager/administrator reporting. Infrastructure reads the stable `vw_department_performance` view and returns Application DTOs; the Blazor page and the read-only JSON/CSV endpoints do not depend on EF Core or MySQL types. This makes the CSV export an immediately usable Power BI import surface without introducing a second reporting implementation.
+
 ## Major tradeoffs
 
 - A modular monolith trades independent deployment for simpler consistency and operations.

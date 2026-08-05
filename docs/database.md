@@ -4,6 +4,8 @@
 
 Milestone 1 established MySQL 8.4 persistence through EF Core 10 and MySQL Connector/NET's `MySql.EntityFrameworkCore` provider. The initial migration is [20260729003606_InitialDatabaseAndIdentity.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729003606_InitialDatabaseAndIdentity.cs). The Milestone 2 security review added [20260729101935_RemoveDemoIdentityFromSchemaSeed.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729101935_RemoveDemoIdentityFromSchemaSeed.cs). Milestone 4 adds [20260729113818_AddRequestReportingAndAssignmentProcedure.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729113818_AddRequestReportingAndAssignmentProcedure.cs). EF migrations remain the source of truth for application schema evolution.
 
+Milestone 7's [20260805232735_AddDepartmentPerformanceReporting.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260805232735_AddDepartmentPerformanceReporting.cs) creates the department-performance view plus indexes for department/status aggregation and terminal-status lookup. Its rollback quotes the MySQL provider's truncated index name because that generated name ends in `~`.
+
 In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. This includes both native startup and the full local Compose stack. The committed loopback and private-Compose connections disable TLS only for isolated local development. The Compose connection also enables MySQL public-key retrieval because MySQL 8.4's default authentication cannot otherwise establish this non-TLS Development connection from a fresh volume. Any non-Development run must supply `ConnectionStrings__OperationsHub` with appropriate transport security and must not copy this Development-only setting blindly. The container image's `--migrate` mode applies schema changes without starting HTTP or creating demo identities; CI verifies it against the disposable local Compose database.
 
 ## Schema
@@ -80,6 +82,8 @@ Migration-only mode uses the current environment configuration but never invokes
 
 Milestone 4 adds [vw_open_request_summary.sql](../database/views/vw_open_request_summary.sql), which exposes new, in-progress, and on-hold requests with a computed age in seconds. Managers and administrators can view it at `/requests/open-summary`; the API equivalent is `GET /api/requests/open-summary`.
 
+Milestone 7 adds [vw_department_performance.sql](../database/views/vw_department_performance.sql), a stable all-time read model grouped by the request's historical department (including an `Unassigned` group). It returns total and open volume, completed volume, average resolution hours, and SLA outcomes. A request becomes completed at its first `Resolved` or `Closed` status-history event. The fixed, documented targets are Critical 4 hours, High 8 hours, Normal 72 hours, and Low 120 hours. Managers and administrators can view the report at `/reports/department-performance`, consume `GET /api/reports/department-performance`, or download the browser-authenticated `GET /api/reports/department-performance.csv` export.
+
 [sp_assign_request.sql](../database/procedures/sp_assign_request.sql) owns the selected transactional assignment workflow. It locks the request row, checks the expected version and closed state, updates the current assignment and version, appends assignment/audit records, and commits as one transaction. A stale version rolls back and returns `conflict`, so it cannot append partial history. The Infrastructure implementation calls it through a parameterized `DbCommand`; ordinary CRUD remains EF Core.
 
 `service_requests.version` is now an application-managed EF concurrency token. Request edits and status changes increment it in the same EF update, while the procedure increments it during assignment. The UI and mutation DTOs round-trip the version; conflicts return HTTP `409` with a safe refresh-and-retry message.
@@ -94,3 +98,12 @@ docker compose exec mysql mysql -uoperationshub -poperationshub_dev_only operati
 ```
 
 The plan lists both status indexes as candidates. On the verified small local dataset, MySQL selected `IX_service_requests_status_created_at_utc` and reported `Using filesort`; it may select `IX_service_requests_status_updated_at_utc` as data distribution changes. The filesort is expected because the report spans multiple status ranges and then orders across them by update time and request number.
+
+The department-performance view is supported by `IX_service_requests_department_id_status_created_at_utc` for request grouping and `IX_request_status_history_status_service_request_id_changed_at_~` for terminal-status lookup. Inspect its plan with:
+
+```bash
+docker compose exec mysql mysql -uoperationshub -poperationshub_dev_only operationshub \
+  -e "EXPLAIN SELECT department_id, department_name, total_requests, open_requests, completed_requests, average_resolution_hours, sla_eligible_requests, sla_met_requests FROM vw_department_performance ORDER BY total_requests DESC, department_name;"
+```
+
+The final all-department aggregate can still use a temporary table or filesort. That is expected for this intentionally bounded portfolio report and should be revisited with real volume and reporting-window requirements.
