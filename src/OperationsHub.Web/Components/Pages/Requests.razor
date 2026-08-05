@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using System.ComponentModel.DataAnnotations
 @inject IServiceRequestWorkflowService RequestService
+@inject IRequestClassificationService RequestClassificationService
 @inject IReferenceDataAdministrationService ReferenceDataService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
@@ -66,7 +67,26 @@
                         <InputTextArea id="request-description" class="form-control" @bind-Value="newRequest.Description" maxlength="4000" rows="4" />
                         <ValidationMessage For="() => newRequest.Description" />
                     </div>
-                    <div class="col-12"><button class="btn btn-primary" type="submit">Submit request</button></div>
+                    <div class="col-12 d-flex flex-wrap align-items-center gap-2">
+                        <button class="btn btn-outline-primary" type="button" @onclick="GetSuggestionAsync" disabled="@isClassifying">@(isClassifying ? "Preparing suggestion…" : "Suggest category and priority")</button>
+                        <button class="btn btn-primary" type="submit">Submit request</button>
+                    </div>
+
+                    @if (classificationSuggestion is not null)
+                    {
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0" role="status" aria-live="polite">
+                                <h3 class="h6">Advisory suggestion</h3>
+                                <dl class="row mb-2">
+                                    <dt class="col-sm-3">Category</dt><dd class="col-sm-9">@SuggestedRequestTypeName</dd>
+                                    <dt class="col-sm-3">Priority</dt><dd class="col-sm-9">@classificationSuggestion.SuggestedPriority</dd>
+                                    <dt class="col-sm-3">Summary</dt><dd class="col-sm-9 mb-0">@classificationSuggestion.Summary</dd>
+                                </dl>
+                                <p class="small mb-2">Review this suggestion before applying it. It does not change your request automatically.</p>
+                                <button class="btn btn-sm btn-primary" type="button" @onclick="ApplySuggestion">Apply category and priority</button>
+                            </div>
+                        </div>
+                    }
                 </EditForm>
             </div>
         </section>
@@ -172,6 +192,8 @@
     private string viewDescription = "Your permitted service-request view.";
     private string listHeading = "Requests";
     private string? errorMessage;
+    private RequestClassificationSuggestion? classificationSuggestion;
+    private bool isClassifying;
 
     private bool HasFilters => !string.IsNullOrWhiteSpace(searchInput.Search) || searchInput.Status.HasValue || searchInput.Priority.HasValue;
     private int TotalPages => requestPage is null ? 0 : Math.Max(1, (int)Math.Ceiling((double)requestPage.TotalCount / requestPage.PageSize));
@@ -216,6 +238,50 @@
 
         Navigation.NavigateTo($"requests/{result.Value!.Id}");
     }
+
+    private async Task GetSuggestionAsync()
+    {
+        errorMessage = null;
+        classificationSuggestion = null;
+        isClassifying = true;
+        try
+        {
+            var result = await RequestClassificationService.ClassifyAsync(
+                actor!,
+                new RequestClassificationCommand(newRequest.Title, newRequest.Description),
+                CancellationToken.None);
+            if (!result.Succeeded)
+            {
+                errorMessage = string.Join(" ", result.Errors.Values.SelectMany(errors => errors));
+                return;
+            }
+
+            classificationSuggestion = result.Value;
+        }
+        finally
+        {
+            isClassifying = false;
+        }
+    }
+
+    private void ApplySuggestion()
+    {
+        if (classificationSuggestion is null)
+        {
+            return;
+        }
+
+        if (classificationSuggestion.SuggestedRequestTypeId.HasValue)
+        {
+            newRequest.RequestTypeId = classificationSuggestion.SuggestedRequestTypeId;
+        }
+
+        newRequest.Priority = classificationSuggestion.SuggestedPriority;
+    }
+
+    private string SuggestedRequestTypeName => classificationSuggestion?.SuggestedRequestTypeId is Guid requestTypeId
+        ? requestTypes.SingleOrDefault(requestType => requestType.Id == requestTypeId)?.Name ?? "No matching active request type"
+        : "No confident category";
 
     private async Task ApplyFiltersAsync()
     {

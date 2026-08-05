@@ -181,10 +181,19 @@ Exit gate passed:
 
 ## Milestone 8 — advisory request classification
 
+Status: **complete (2026-08-05)**
+
 - `IRequestClassificationService`
 - Deterministic rules and optional AI-backed implementation
 - Suggested category, priority, and concise summary with human review
 - Graceful fallback, offline tests, and no committed keys
+
+Exit gate passed:
+
+- Requesters can request a suggestion in the Blazor submission form, review its category, priority, and concise summary, then explicitly apply the category and priority before submitting; no suggestion automatically mutates a request.
+- `IRequestClassificationService` obtains active request types from the server-side reference-data contract and enforces requester-only access.
+- The deterministic implementation is always available and offline-testable. An optional OpenAI Responses API adapter is enabled only with an externally supplied API key, uses structured output, and returns the deterministic suggestion if configuration, transport, or output validation fails.
+- No key is committed. Use `RequestClassification__OpenAi__ApiKey` as a user secret or environment variable; `RequestClassification__OpenAi__Model` and `RequestClassification__OpenAi__TimeoutSeconds` are optional overrides.
 
 ## Milestone 9 — optional expansion
 
