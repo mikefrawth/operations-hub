@@ -17,6 +17,22 @@ jobs:
   quality:
     name: Build, test, and format
     runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: operationshub
+          MYSQL_USER: operationshub
+          MYSQL_PASSWORD: operationshub_dev_only
+          MYSQL_ROOT_PASSWORD: operationshub_root_dev_only
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "mysqladmin ping --host=127.0.0.1 --user=root --password=operationshub_root_dev_only --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 20s
 
     steps:
       - name: Check out source
@@ -34,6 +50,8 @@ jobs:
         run: ./eng/dotnet.sh build OperationsHub.sln --no-restore --verbosity minimal
 
       - name: Run tests without rebuild
+        env:
+          OPERATIONS_HUB_TEST_CONNECTION: Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled;AllowPublicKeyRetrieval=True
         run: ./eng/dotnet.sh test OperationsHub.sln --no-build --no-restore --verbosity minimal
 
       - name: Verify formatting
