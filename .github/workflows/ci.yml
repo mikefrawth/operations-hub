@@ -50,6 +50,8 @@ jobs:
         run: ./eng/dotnet.sh build OperationsHub.sln --no-restore --verbosity minimal
 
       - name: Run tests without rebuild
+        env:
+          OPERATIONS_HUB_TEST_CONNECTION: Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled;AllowPublicKeyRetrieval=True
         run: ./eng/dotnet.sh test OperationsHub.sln --no-build --no-restore --verbosity minimal
 
       - name: Verify formatting
