@@ -4,7 +4,7 @@
 
 Milestone 1 established MySQL 8.4 persistence through EF Core 10 and MySQL Connector/NET's `MySql.EntityFrameworkCore` provider. The initial migration is [20260729003606_InitialDatabaseAndIdentity.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729003606_InitialDatabaseAndIdentity.cs). The Milestone 2 security review added [20260729101935_RemoveDemoIdentityFromSchemaSeed.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729101935_RemoveDemoIdentityFromSchemaSeed.cs). Milestone 4 adds [20260729113818_AddRequestReportingAndAssignmentProcedure.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260729113818_AddRequestReportingAndAssignmentProcedure.cs). EF migrations remain the source of truth for application schema evolution.
 
-In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. This includes both native startup and the full local Compose stack. The committed loopback and private-Compose connections disable TLS only for isolated local development. The Compose connection also enables MySQL public-key retrieval because MySQL 8.4's default authentication cannot otherwise establish this non-TLS Development connection from a fresh volume. Non-development configuration must supply `ConnectionStrings__OperationsHub` with deployment-appropriate transport security and must not copy this Development-only setting blindly. The container image's `--migrate` mode gives deployment automation an explicit production migration step without starting HTTP or creating demo identities.
+In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. This includes both native startup and the full local Compose stack. The committed loopback and private-Compose connections disable TLS only for isolated local development. The Compose connection also enables MySQL public-key retrieval because MySQL 8.4's default authentication cannot otherwise establish this non-TLS Development connection from a fresh volume. Any non-Development run must supply `ConnectionStrings__OperationsHub` with appropriate transport security and must not copy this Development-only setting blindly. The container image's `--migrate` mode applies schema changes without starting HTTP or creating demo identities; CI verifies it against the disposable local Compose database.
 
 ## Schema
 
@@ -39,7 +39,7 @@ The EF model seeds two departments and two request types. Development startup cr
 | Manager | manager@operationshub.local |
 | Administrator | administrator@operationshub.local |
 
-These credentials are intentionally public development fixtures. They have failed-attempt lockout enabled and must never be deployed. The remediation migration removes their role assignments, clears their password hashes, changes their security stamps, and locks them without deleting the user rows, preserving any historical foreign-key relationships. Its `Down` method deliberately does not restore public credentials. The environment-guarded Development initializer is the only code path that restores the password and roles.
+These credentials are intentionally public development fixtures. They have failed-attempt lockout enabled and must never be used in a persistent or uncontrolled public environment. During an optional scheduled Quick Tunnel demo, share only the temporary web URL with the intended attendees and stop the tunnel immediately afterward. The remediation migration removes the demo accounts' role assignments, clears their password hashes, changes their security stamps, and locks them without deleting the user rows, preserving any historical foreign-key relationships. Its `Down` method deliberately does not restore public credentials. The environment-guarded Development initializer is the only code path that restores the password and roles.
 
 ## Reference-data administration
 
@@ -72,7 +72,7 @@ The equivalent container migration command for the local Compose connection is:
 docker compose run --rm web --migrate
 ```
 
-Production release automation runs the immutable release image with `--migrate` and injects its managed connection string through `ConnectionStrings__OperationsHub`. Migration-only mode uses the current environment configuration but never invokes the Development identity or portfolio-scenario seeders. See [deployment.md](deployment.md) for the release sequence.
+Migration-only mode uses the current environment configuration but never invokes the Development identity or portfolio-scenario seeders. It is exercised by local container verification and retained for the archived future-hosting option. There is no active production release automation or managed database. See [deployment.md](deployment.md) for the supported demonstration path and archived design.
 
 ## Views and stored procedures
 

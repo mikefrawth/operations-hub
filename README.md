@@ -6,9 +6,9 @@ The project favors a complete modular monolith over microservices or speculative
 
 ## Current status
 
-**Milestone 5 engineering hardening is in progress, with the Milestone 6 container-delivery foundation implemented.**
+**The local-delivery scope of Milestone 6 is implemented. Azure and all other live-production hosting work is Archived / not currently planned; it was deferred to avoid ongoing cloud costs for a portfolio project.**
 
-The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage production image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
+The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage Linux image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
 
 ## Technology
 
@@ -20,10 +20,11 @@ The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Developm
 - ASP.NET Core Identity, beginning in Milestone 1
 - xUnit
 - Docker Compose
+- GitHub Actions for quality and local-container verification, with build-artifact publication to GitHub Container Registry
 
 ## Architecture
 
-OperationsHub is split into four production projects:
+OperationsHub is split into four source projects:
 
 ```text
 Web -> Infrastructure -> Application -> Domain
@@ -153,7 +154,7 @@ For native web development, start only MySQL with `docker compose up -d mysql`. 
 docker compose down --volumes
 ```
 
-This reset is destructive and intended only for disposable local development data. See [docs/deployment.md](docs/deployment.md) for the image contract, health endpoints, explicit migration mode, managed-MySQL configuration, reverse-proxy requirements, secrets, and rollback guidance.
+This reset is destructive and intended only for disposable local development data. See [docs/deployment.md](docs/deployment.md) for the local image contract, health endpoints, temporary demonstration workflow, and the clearly separated archive of the former hosted-production design.
 
 ## Contributor build, test, and format
 
@@ -201,13 +202,13 @@ Development startup applies migrations automatically. For native tooling, restor
 
 The remediation migration removes role assignments and disables the fixed demo identities that the initial migration historically created. The web host recreates their password and role assignments only when it starts in the Development environment. See [docs/database.md](docs/database.md) for the schema, ER diagram, migration behavior, and seed data.
 
-The container image also provides a deployment-safe, migration-only mode that does not start the HTTP server or initialize Development demo accounts:
+The container image also provides a migration-only mode that does not start the HTTP server or initialize Development demo accounts:
 
 ```bash
 docker compose run --rm web --migrate
 ```
 
-Production deployments should run this mode as a one-shot release task before starting the new web revision.
+CI verifies this mode against the disposable Compose database. The archived hosting design retained it as a possible one-shot schema migration mechanism, but no live release currently uses it.
 
 ## Demo accounts
 
@@ -232,7 +233,8 @@ The reference-data API uses the same cookie authentication as the Blazor UI. Aft
 | Development administrator impersonation | Implemented in Milestone 5 |
 | Engineering hardening | In progress in Milestone 5 |
 | Container delivery | Dockerfile and full Compose stack implemented for Milestone 6 |
-| CI/CD and provider deployment | Planned for the remainder of Milestone 6 |
+| CI and local container verification | Implemented in Milestone 6 |
+| Azure or other live-production hosting | **Archived / not currently planned** to avoid ongoing portfolio-project cloud costs |
 
 See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
 
@@ -240,20 +242,52 @@ See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
 
 Screenshots will be added after visual polish. The current UI is intentionally restrained and includes the service-request workflow plus the manager/administrator open-request summary.
 
-## Deployment
+## Portfolio demonstration
 
-The same image built by Compose is designed for a managed container platform. A production deployment needs an HTTPS ingress, a managed MySQL 8.x database, environment-based secrets, persistent or external Data Protection keys, an explicit migration release task, and a production identity-provisioning decision. Provider selection and CI/CD remain open so the repository does not claim an unverified hosted target. See [docs/deployment.md](docs/deployment.md) for the complete contract.
+Docker Compose is the supported way to run and demonstrate the complete application, including MySQL. There is no active Azure or other live hosted environment, and cloud provisioning is not a prerequisite, next milestone, deployment step, or definition-of-done item.
+
+For a scheduled remote demonstration, start the local stack from the repository root:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build --detach
+docker compose ps
+```
+
+Use `cp .env.example .env` for the first command on Linux, macOS, or WSL. Confirm that both services are healthy and that `http://localhost:5090/health/ready` succeeds. The default web port is `5090`, from the Compose mapping `${APP_PORT:-5090}:8080`.
+
+With `cloudflared` installed, start a Quick Tunnel in a separate terminal:
+
+```bash
+cloudflared tunnel --url http://localhost:5090
+```
+
+If `APP_PORT` overrides the default, use the mapped host port in the same command:
+
+```text
+cloudflared tunnel --url http://localhost:<web-port>
+```
+
+Share the generated random `https://...trycloudflare.com` URL only with the scheduled attendees and only for the duration of the demonstration. A Quick Tunnel is not a production deployment: it has no uptime guarantee, its URL changes when restarted, and the demo laptop must remain awake with Docker Compose and `cloudflared` running. Do not publish the URL, expose `.env` or other sensitive configuration, or make the Development-only demo accounts available outside the controlled session. Keep a short recorded walkthrough as a backup.
+
+Immediately after the demonstration, stop `cloudflared` with <kbd>Ctrl</kbd>+<kbd>C</kbd>, then stop the local stack:
+
+```bash
+docker compose down
+```
+
+The former Azure/live-production plan is preserved only as an archived future option in [docs/deployment.md](docs/deployment.md) and [decision 0011](docs/decisions/0011-local-portfolio-demonstration.md).
 
 ## Known limitations
 
-- The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and production identity-provider integration are deferred.
-- Administrator impersonation is Development-only and accepts only active accounts with exactly one Requester, Technician, or Manager role. Production support impersonation is intentionally not implemented.
+- The development sign-in screen uses an antiforgery-protected HTTP form and supports the Development-only demo accounts. Sign-in attempts are limited per remote IP, accounts lock for 15 minutes after five failed attempts, and registration, password recovery, multifactor authentication, and a non-Development identity provider are outside the active portfolio scope.
+- Administrator impersonation is Development-only and accepts only active accounts with exactly one Requester, Technician, or Manager role. A non-Development support impersonation path is intentionally not implemented.
 - Managers and administrators can assign requests only to active technicians selected from the technician directory.
 - Development startup creates a deterministic open service request so the service-request and open-request-summary pages have populated-data coverage for local demonstrations.
 - The unauthenticated `/health` and `/health/ready` endpoints check database connectivity; `/health/live` checks only whether the web process can serve requests. The host writes structured JSON logs and returns safe error responses through centralized exception handling.
-- Compose intentionally runs the web host in `Development` for disposable local demonstrations. The public demo identities are never initialized by the image's production migration mode.
-- Compose stores unencrypted Data Protection keys in a private local named volume for restart-stable demo sessions; production must use access-controlled, encrypted-at-rest storage or an external key provider.
-- A hosted production instance still needs a deliberate identity-provisioning or restricted-demo strategy; public registration is not enabled.
+- Compose intentionally runs the web host in `Development` for disposable local demonstrations. Migration-only mode never initializes the public demo identities.
+- Compose stores unencrypted Data Protection keys in a private local named volume for restart-stable demo sessions; this local configuration must not become a persistent public environment.
+- Azure and other live-production hosting are Archived / not currently planned. The optional Quick Tunnel is temporary, has a changing URL and no uptime guarantee, and depends on the demo laptop remaining online.
 - Integration tests cover migrations, Development-only identity initialization and impersonation eligibility, security endpoint metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
 
 ## License
