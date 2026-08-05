@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject IServiceRequestWorkflowService RequestService
 @inject ITechnicianDirectory TechnicianDirectory
+@inject IUserDisplayDirectory UserDirectory
 @inject IReferenceDataAdministrationService ReferenceDataService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
@@ -21,7 +22,7 @@ else
         <a href="requests" class="link-secondary">← Back to requests</a>
         <p class="text-uppercase text-primary fw-semibold mb-2 mt-3">@request.RequestNumber</p>
         <h1>@request.Title</h1>
-        <p class="text-body-secondary">Submitted @request.CreatedAtUtc.LocalDateTime.ToString("g") · @request.Status · @request.Priority priority</p>
+        <p class="text-body-secondary">Submitted @request.CreatedAtUtc.LocalDateTime.ToString("g") · @ServiceRequestDisplay.Status(request.Status) · @request.Priority priority</p>
 
         @if (!string.IsNullOrWhiteSpace(statusMessage))
         {
@@ -56,11 +57,11 @@ else
             <aside class="col-lg-4">
                 <div class="card shadow-sm mb-4"><div class="card-body">
                     <h2 class="h4">Workflow</h2>
-                    <dl class="mb-0"><dt>Requester</dt><dd class="text-break">@request.RequesterId</dd><dt>Assignee</dt><dd class="text-break">@(request.AssigneeId ?? "Unassigned")</dd><dt>Status</dt><dd>@request.Status</dd></dl>
+                    <dl class="mb-0"><dt>Requester</dt><dd class="text-break">@DisplayUser(request.RequesterId)</dd><dt>Assignee</dt><dd class="text-break">@DisplayUser(request.AssigneeId)</dd><dt>Status</dt><dd>@ServiceRequestDisplay.Status(request.Status)</dd></dl>
                     @if (CanManage)
                     {
                         <hr />
-                        <EditForm Model="statusInput" OnValidSubmit="ChangeStatusAsync"><label class="form-label" for="status">Change status</label><InputSelect id="status" class="form-select mb-2" @bind-Value="statusInput.Status">@foreach (var status in Enum.GetValues<ServiceRequestStatus>()) { <option value="@status">@status</option> }</InputSelect><button class="btn btn-outline-primary" type="submit">Update status</button></EditForm>
+                        <EditForm Model="statusInput" OnValidSubmit="ChangeStatusAsync"><label class="form-label" for="status">Change status</label><InputSelect id="status" class="form-select mb-2" @bind-Value="statusInput.Status">@foreach (var status in Enum.GetValues<ServiceRequestStatus>()) { <option value="@status">@ServiceRequestDisplay.Status(status)</option> }</InputSelect><button class="btn btn-outline-primary" type="submit">Update status</button></EditForm>
                     }
                     @if (CanAssign)
                     {
@@ -73,12 +74,12 @@ else
 
         <div class="row g-4 mt-1">
             <section class="col-lg-6" aria-labelledby="comments-heading"><div class="card shadow-sm h-100"><div class="card-body"><h2 id="comments-heading" class="h4">Comments</h2>
-                @if (request.Comments.Count == 0) { <p class="text-body-secondary">No comments yet.</p> } else { @foreach (var comment in request.Comments) { <article class="border-bottom py-2"><div class="small text-body-secondary">@comment.AuthorId · @comment.CreatedAtUtc.LocalDateTime.ToString("g")</div><div class="text-break">@comment.Body</div></article> } }
+                @if (request.Comments.Count == 0) { <p class="text-body-secondary">No comments yet.</p> } else { @foreach (var comment in request.Comments) { <article class="border-bottom py-2"><div class="small text-body-secondary">@DisplayUser(comment.AuthorId) · @comment.CreatedAtUtc.LocalDateTime.ToString("g")</div><div class="text-break">@comment.Body</div></article> } }
                 <EditForm Model="commentInput" OnValidSubmit="AddCommentAsync" class="mt-3"><label class="form-label" for="comment">Add a comment</label><InputTextArea id="comment" class="form-control mb-2" @bind-Value="commentInput.Body" maxlength="4000" rows="3" /><button class="btn btn-primary" type="submit">Add comment</button></EditForm>
             </div></div></section>
             <section class="col-lg-6" aria-labelledby="history-heading"><div class="card shadow-sm h-100"><div class="card-body"><h2 id="history-heading" class="h4">History</h2>
-                <h3 class="h6">Status changes</h3><ul class="list-unstyled">@foreach (var history in request.StatusHistory) { <li class="mb-2"><strong>@history.Status</strong><br /><span class="small text-body-secondary">@history.ChangedById · @history.ChangedAtUtc.LocalDateTime.ToString("g")</span></li> }</ul>
-                <h3 class="h6">Assignments</h3><ul class="list-unstyled mb-0">@if (request.Assignments.Count == 0) { <li class="text-body-secondary">No assignments yet.</li> } else { @foreach (var assignment in request.Assignments) { <li class="mb-2"><strong>@assignment.AssigneeId</strong><br /><span class="small text-body-secondary">Assigned by @assignment.AssignedById · @assignment.AssignedAtUtc.LocalDateTime.ToString("g")</span></li> } }</ul>
+                <h3 class="h6">Status changes</h3><ul class="list-unstyled">@foreach (var history in request.StatusHistory) { <li class="mb-2"><strong>@ServiceRequestDisplay.Status(history.Status)</strong><br /><span class="small text-body-secondary">@DisplayUser(history.ChangedById) · @history.ChangedAtUtc.LocalDateTime.ToString("g")</span></li> }</ul>
+                <h3 class="h6">Assignments</h3><ul class="list-unstyled mb-0">@if (request.Assignments.Count == 0) { <li class="text-body-secondary">No assignments yet.</li> } else { @foreach (var assignment in request.Assignments) { <li class="mb-2"><strong>@DisplayUser(assignment.AssigneeId)</strong><br /><span class="small text-body-secondary">Assigned by @DisplayUser(assignment.AssignedById) · @assignment.AssignedAtUtc.LocalDateTime.ToString("g")</span></li> } }</ul>
             </div></div></section>
         </div>
     </div>
@@ -92,6 +93,7 @@ else
     private List<DepartmentDto> departments = [];
     private List<RequestTypeDto> requestTypes = [];
     private List<TechnicianDto> technicians = [];
+    private IReadOnlyDictionary<string, string> userDisplayNames = new Dictionary<string, string>();
     private EditRequestInput editRequest = new();
     private StatusInput statusInput = new();
     private AssignmentInput assignmentInput = new();
@@ -119,6 +121,15 @@ else
         var result = await RequestService.GetAsync(actor!, Id, CancellationToken.None);
         if (!result.Succeeded) { errorMessage = result.Status == RequestOperationStatus.Forbidden ? "You do not have permission to view this request." : "The request could not be found."; return; }
         request = result.Value;
+        var userIds = new[] { request!.RequesterId, request.AssigneeId }
+            .Concat(request.Comments.Select(comment => comment.AuthorId))
+            .Concat(request.StatusHistory.Select(history => history.ChangedById))
+            .Concat(request.Assignments.SelectMany(assignment => new[] { assignment.AssigneeId, assignment.AssignedById }))
+            .OfType<string>()
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        userDisplayNames = (await UserDirectory.GetByIdsAsync(userIds, CancellationToken.None))
+            .ToDictionary(user => user.Id, user => user.DisplayName, StringComparer.Ordinal);
         editRequest = new() { Title = request!.Title, Description = request.Description, RequestTypeId = request.RequestTypeId, DepartmentId = request.DepartmentId, Priority = request.Priority };
         statusInput = new() { Status = request.Status };
         assignmentInput = new() { AssigneeId = request.AssigneeId };
@@ -146,6 +157,10 @@ else
         var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
         return new RequestActor(principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."), principal.IsInRole("Administrator") ? RequestActorRole.Administrator : principal.IsInRole("Manager") ? RequestActorRole.Manager : principal.IsInRole("Technician") ? RequestActorRole.Technician : RequestActorRole.Requester);
     }
+
+    private string DisplayUser(string? userId) => userId is null
+        ? "Unassigned"
+        : userDisplayNames.GetValueOrDefault(userId, userId);
 
     private sealed class EditRequestInput { public string? Title { get; set; } public string? Description { get; set; } public Guid RequestTypeId { get; set; } public Guid? DepartmentId { get; set; } public ServiceRequestPriority Priority { get; set; } }
     private sealed class StatusInput { public ServiceRequestStatus Status { get; set; } }

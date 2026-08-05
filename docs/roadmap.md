@@ -109,7 +109,7 @@ Exit gate passed:
 
 ## Milestone 5 — engineering hardening
 
-Status: **in progress (2026-07-29)**
+Status: **complete (2026-08-05)**
 
 - Structured logging, centralized exception handling, Problem Details, and health checks
 - Security, accessibility, performance, and test-coverage review
@@ -117,6 +117,19 @@ Status: **in progress (2026-07-29)**
 - Development-only administrator impersonation with eligible-user filtering, audit events, and a persistent return banner
 - Seeded portfolio scenario and UI verification that populated service-request and open-request-summary views render their data for each permitted role
 - Screenshots and implementation-driven cleanup
+
+Exit gate passed:
+
+- Structured JSON logging, centralized exception handling, safe API Problem Details, database-backed readiness, and process-only liveness remained covered by the assembled host.
+- Security review confirmed server-side authorization, antiforgery metadata on cookie-authenticated mutations, sign-in throttling and lockout, secure cookie settings, safe return URLs, and defensive response headers.
+- Accessibility cleanup added contextual action names, table captions, readable workflow-state labels, and client validation summaries while preserving page titles, headings, labels, empty states, and the skip link.
+- Request lists now expose the existing bounded search, status/priority filtering, and pagination behavior in the Blazor frontend.
+- Development startup creates an assigned, in-progress scenario with comments and complete history; browser checks verified populated Requester, Technician, Manager, and Administrator views.
+- Identity-backed participant display names replace internal identifiers in request history and reporting while remaining behind an Application contract.
+- The real-MySQL scenario test verifies all four role views, reporting, participant lookup, and audit/history data; all 30 tests passed.
+- Restore, build, test, and formatting verification completed successfully, and portfolio screenshots were captured from the verified application.
+
+See [engineering-hardening-review.md](engineering-hardening-review.md) for the review evidence and stated limitations.
 
 ## Milestone 6 — local container delivery and continuous verification
 

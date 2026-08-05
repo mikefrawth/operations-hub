@@ -83,6 +83,8 @@ Development administrators can start an audited test session as an active accoun
 
 Managers and administrators select assignees from an Infrastructure-backed technician directory exposed through an Application contract. Assignment validation still checks the selected Identity user on the server before the transactional procedure runs.
 
+Request detail and reporting components resolve the bounded set of visible participant IDs through a separate Application directory contract. Infrastructure implements that lookup with a no-tracking Identity query, so Razor components display names without referencing `ApplicationUser`, EF Core, or the DbContext.
+
 ## Data access
 
 EF Core will handle aggregate persistence, relationship mapping, migrations, and routine queries. Handwritten parameterized MySQL SQL will be used selectively where a reporting view, stored procedure, or database-specific query is the clearest enterprise demonstration. EF entities will not cross API boundaries.

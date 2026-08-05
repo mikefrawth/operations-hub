@@ -1,5 +1,6 @@
 @page "/requests"
 @attribute [Authorize]
+@using System.ComponentModel.DataAnnotations
 @inject IServiceRequestWorkflowService RequestService
 @inject IReferenceDataAdministrationService ReferenceDataService
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -24,9 +25,11 @@
                 <h2 id="new-request-heading" class="h4">Submit a request</h2>
                 <EditForm Model="newRequest" OnValidSubmit="CreateAsync" class="row g-3">
                     <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger" />
                     <div class="col-md-8">
                         <label class="form-label" for="request-title">Title</label>
                         <InputText id="request-title" class="form-control" @bind-Value="newRequest.Title" maxlength="200" />
+                        <ValidationMessage For="() => newRequest.Title" />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label" for="request-priority">Priority</label>
@@ -40,12 +43,13 @@
                     <div class="col-md-6">
                         <label class="form-label" for="request-type">Request type</label>
                         <InputSelect id="request-type" class="form-select" @bind-Value="newRequest.RequestTypeId">
-                            <option value="@Guid.Empty">Select a request type</option>
+                            <option value="">Select a request type</option>
                             @foreach (var requestType in requestTypes)
                             {
                                 <option value="@requestType.Id">@requestType.Name</option>
                             }
                         </InputSelect>
+                        <ValidationMessage For="() => newRequest.RequestTypeId" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="request-department">Department <span class="text-body-secondary">(optional)</span></label>
@@ -60,6 +64,7 @@
                     <div class="col-12">
                         <label class="form-label" for="request-description">Description</label>
                         <InputTextArea id="request-description" class="form-control" @bind-Value="newRequest.Description" maxlength="4000" rows="4" />
+                        <ValidationMessage For="() => newRequest.Description" />
                     </div>
                     <div class="col-12"><button class="btn btn-primary" type="submit">Submit request</button></div>
                 </EditForm>
@@ -68,27 +73,72 @@
     }
 
     <section aria-labelledby="request-list-heading">
-        <h2 id="request-list-heading" class="h3">@listHeading</h2>
-        @if (requests is null)
+        <div class="d-lg-flex justify-content-between align-items-end gap-3 mb-3">
+            <div>
+                <h2 id="request-list-heading" class="h3 mb-1">@listHeading</h2>
+                <p class="text-body-secondary mb-0">Search by request number or title, then narrow the results by workflow state.</p>
+            </div>
+        </div>
+
+        <EditForm Model="searchInput" OnValidSubmit="ApplyFiltersAsync" class="card card-body bg-body-tertiary border-0 mb-3">
+            <div class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label" for="request-search">Search requests</label>
+                    <InputText id="request-search" type="search" class="form-control" @bind-Value="searchInput.Search" placeholder="Request number or title" />
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="request-status-filter">Status</label>
+                    <InputSelect id="request-status-filter" class="form-select" @bind-Value="searchInput.Status">
+                        <option value="">All statuses</option>
+                        @foreach (var status in Enum.GetValues<ServiceRequestStatus>())
+                        {
+                            <option value="@status">@ServiceRequestDisplay.Status(status)</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-sm-6 col-lg-2">
+                    <label class="form-label" for="request-priority-filter">Priority</label>
+                    <InputSelect id="request-priority-filter" class="form-select" @bind-Value="searchInput.Priority">
+                        <option value="">All priorities</option>
+                        @foreach (var priority in Enum.GetValues<ServiceRequestPriority>())
+                        {
+                            <option value="@priority">@priority</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-lg-3 d-flex gap-2">
+                    <button class="btn btn-primary flex-grow-1" type="submit">Apply filters</button>
+                    <button class="btn btn-outline-secondary" type="button" @onclick="ResetFiltersAsync" disabled="@(!HasFilters)">Reset</button>
+                </div>
+            </div>
+        </EditForm>
+
+        @if (requestPage is null)
         {
-            <p class="text-body-secondary">Loading requests…</p>
+            <p class="text-body-secondary" role="status">Loading requests…</p>
         }
-        else if (requests.Count == 0)
+        else if (requestPage.Items.Count == 0)
         {
-            <p class="text-body-secondary">No service requests match this view.</p>
+            <div class="alert alert-light border" role="status">
+                <p class="mb-0">No service requests match the current filters.</p>
+            </div>
         }
         else
         {
+            <p class="small text-body-secondary" role="status" aria-live="polite">
+                Showing @FirstResult–@LastResult of @requestPage.TotalCount requests.
+            </p>
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table table-hover align-middle">
+                    <caption class="visually-hidden">@listHeading. @requestPage.TotalCount total requests.</caption>
                     <thead><tr><th scope="col">Number</th><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Updated</th></tr></thead>
                     <tbody>
-                        @foreach (var request in requests)
+                        @foreach (var request in requestPage.Items)
                         {
                             <tr>
                                 <td><a href="@($"requests/{request.Id}")">@request.RequestNumber</a></td>
                                 <td>@request.Title</td>
-                                <td>@request.Status</td>
+                                <td>@ServiceRequestDisplay.Status(request.Status)</td>
                                 <td>@request.Priority</td>
                                 <td>@request.UpdatedAtUtc.LocalDateTime.ToString("g")</td>
                             </tr>
@@ -96,19 +146,37 @@
                     </tbody>
                 </table>
             </div>
+
+            @if (TotalPages > 1)
+            {
+                <nav class="d-flex justify-content-between align-items-center" aria-label="Request result pages">
+                    <button class="btn btn-outline-primary" type="button" @onclick="PreviousPageAsync" disabled="@(requestPage.Page == 1)">Previous</button>
+                    <span class="small text-body-secondary">Page @requestPage.Page of @TotalPages</span>
+                    <button class="btn btn-outline-primary" type="button" @onclick="NextPageAsync" disabled="@(requestPage.Page == TotalPages)">Next</button>
+                </nav>
+            }
         }
     </section>
 </div>
 
 @code {
-    private List<ServiceRequestListItemDto>? requests;
+    private const int PageSize = 10;
+
+    private PagedResult<ServiceRequestListItemDto>? requestPage;
     private List<DepartmentDto> departments = [];
     private List<RequestTypeDto> requestTypes = [];
     private RequestActor? actor;
     private RequestInput newRequest = new();
+    private RequestSearchInput searchInput = new();
+    private int currentPage = 1;
     private string viewDescription = "Your permitted service-request view.";
     private string listHeading = "Requests";
     private string? errorMessage;
+
+    private bool HasFilters => !string.IsNullOrWhiteSpace(searchInput.Search) || searchInput.Status.HasValue || searchInput.Priority.HasValue;
+    private int TotalPages => requestPage is null ? 0 : Math.Max(1, (int)Math.Ceiling((double)requestPage.TotalCount / requestPage.PageSize));
+    private int FirstResult => requestPage is null || requestPage.TotalCount == 0 ? 0 : ((requestPage.Page - 1) * requestPage.PageSize) + 1;
+    private int LastResult => requestPage is null ? 0 : Math.Min(requestPage.Page * requestPage.PageSize, requestPage.TotalCount);
 
     protected override async Task OnInitializedAsync()
     {
@@ -131,7 +199,15 @@
     private async Task CreateAsync()
     {
         errorMessage = null;
-        var result = await RequestService.CreateAsync(actor!, new(newRequest.Title, newRequest.Description, newRequest.RequestTypeId, newRequest.Priority, newRequest.DepartmentId), CancellationToken.None);
+        var result = await RequestService.CreateAsync(
+            actor!,
+            new(
+                newRequest.Title,
+                newRequest.Description,
+                newRequest.RequestTypeId.GetValueOrDefault(),
+                newRequest.Priority,
+                newRequest.DepartmentId),
+            CancellationToken.None);
         if (!result.Succeeded)
         {
             errorMessage = string.Join(" ", result.Errors.Values.SelectMany(errors => errors));
@@ -141,7 +217,36 @@
         Navigation.NavigateTo($"requests/{result.Value!.Id}");
     }
 
-    private async Task LoadAsync() => requests = (await RequestService.SearchAsync(actor!, new ServiceRequestSearchQuery(), CancellationToken.None)).Items.ToList();
+    private async Task ApplyFiltersAsync()
+    {
+        currentPage = 1;
+        await LoadAsync();
+    }
+
+    private async Task ResetFiltersAsync()
+    {
+        searchInput = new();
+        currentPage = 1;
+        await LoadAsync();
+    }
+
+    private Task PreviousPageAsync() => ChangePageAsync(currentPage - 1);
+
+    private Task NextPageAsync() => ChangePageAsync(currentPage + 1);
+
+    private async Task ChangePageAsync(int page)
+    {
+        currentPage = Math.Clamp(page, 1, TotalPages);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        requestPage = await RequestService.SearchAsync(
+            actor!,
+            new ServiceRequestSearchQuery(currentPage, PageSize, searchInput.Search, searchInput.Status, searchInput.Priority),
+            CancellationToken.None);
+    }
 
     private async Task<RequestActor> GetActorAsync()
     {
@@ -153,10 +258,28 @@
 
     private sealed class RequestInput
     {
+        [Required(ErrorMessage = "Title is required.")]
+        [StringLength(200, ErrorMessage = "Title cannot exceed 200 characters.")]
         public string? Title { get; set; }
+
+        [Required(ErrorMessage = "Description is required.")]
+        [StringLength(4_000, ErrorMessage = "Description cannot exceed 4000 characters.")]
         public string? Description { get; set; }
-        public Guid RequestTypeId { get; set; }
+
+        [Required(ErrorMessage = "Select a request type.")]
+        public Guid? RequestTypeId { get; set; }
+
         public ServiceRequestPriority Priority { get; set; } = ServiceRequestPriority.Normal;
+
         public Guid? DepartmentId { get; set; }
+    }
+
+    private sealed class RequestSearchInput
+    {
+        public string? Search { get; set; }
+
+        public ServiceRequestStatus? Status { get; set; }
+
+        public ServiceRequestPriority? Priority { get; set; }
     }
 }
