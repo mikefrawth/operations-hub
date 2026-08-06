@@ -6,7 +6,7 @@ public interface IServiceRequestStore
 {
     public Task<bool> RequestTypeIsActiveAsync(Guid id, CancellationToken cancellationToken);
     public Task<bool> DepartmentIsActiveAsync(Guid id, CancellationToken cancellationToken);
-    public Task<bool> UserExistsAsync(string id, CancellationToken cancellationToken);
+    public Task<bool> ActiveTechnicianExistsAsync(string id, DateTimeOffset asOfUtc, CancellationToken cancellationToken);
     public Task<ServiceRequest?> FindAsync(Guid id, CancellationToken cancellationToken);
     public Task RefreshAsync(ServiceRequest request, CancellationToken cancellationToken);
     public Task<IReadOnlyList<RequestAssignment>> GetAssignmentsAsync(Guid requestId, CancellationToken cancellationToken);

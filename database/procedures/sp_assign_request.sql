@@ -10,6 +10,7 @@ proc: BEGIN
 
     START TRANSACTION;
 
+    -- Lock the request so version validation and all three writes share one atomic outcome.
     SELECT version, status
     INTO v_current_version, v_current_status
     FROM service_requests
@@ -22,7 +23,8 @@ proc: BEGIN
     ELSEIF v_current_version <> p_expected_version THEN
         ROLLBACK;
         SELECT 'conflict' AS outcome, v_current_version AS version;
-    ELSEIF v_current_status = 4 THEN
+    -- Persisted ServiceRequestStatus values: Resolved = 4, Closed = 5.
+    ELSEIF v_current_status = 5 THEN
         ROLLBACK;
         SELECT 'closed' AS outcome, v_current_version AS version;
     ELSE

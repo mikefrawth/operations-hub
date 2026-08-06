@@ -1,9 +1,8 @@
 using System.Globalization;
-using System.Security.Claims;
 using System.Text;
 using OperationsHub.Application.Reporting;
 using OperationsHub.Application.Requests;
-using OperationsHub.Infrastructure.Identity;
+using OperationsHub.Web.Authentication;
 
 namespace OperationsHub.Web.Api;
 
@@ -11,7 +10,8 @@ public static class ReportingEndpoints
 {
     public static IEndpointRouteBuilder MapReportingEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/reports").RequireAuthorization();
+        var group = endpoints.MapGroup("/api/reports")
+            .RequireAuthorization(AuthorizationPolicies.ManagerOrAdministrator);
         group.MapGet("/department-performance", GetDepartmentPerformanceAsync);
         group.MapGet("/department-performance.csv", DownloadDepartmentPerformanceCsvAsync);
         return endpoints;
@@ -21,14 +21,14 @@ public static class ReportingEndpoints
         HttpContext context,
         IRequestReportingService service,
         CancellationToken cancellationToken) =>
-        ToResult(await service.GetDepartmentPerformanceAsync(GetActor(context.User), cancellationToken));
+        ToResult(await service.GetDepartmentPerformanceAsync(RequestActorClaimsMapper.Create(context.User), cancellationToken));
 
     private static async Task<IResult> DownloadDepartmentPerformanceCsvAsync(
         HttpContext context,
         IRequestReportingService service,
         CancellationToken cancellationToken)
     {
-        var result = await service.GetDepartmentPerformanceAsync(GetActor(context.User), cancellationToken);
+        var result = await service.GetDepartmentPerformanceAsync(RequestActorClaimsMapper.Create(context.User), cancellationToken);
         if (!result.Succeeded)
         {
             return ToResult(result);
@@ -50,19 +50,6 @@ public static class ReportingEndpoints
         }
 
         return Results.File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "department-performance.csv");
-    }
-
-    private static RequestActor GetActor(ClaimsPrincipal user)
-    {
-        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("Authenticated user ID is missing.");
-        var role = user.IsInRole(RoleNames.Administrator)
-            ? RequestActorRole.Administrator
-            : user.IsInRole(RoleNames.Manager)
-                ? RequestActorRole.Manager
-                : user.IsInRole(RoleNames.Technician)
-                    ? RequestActorRole.Technician
-                    : RequestActorRole.Requester;
-        return new RequestActor(userId, role);
     }
 
     private static IResult ToResult<T>(RequestOperationResult<T> result) => result.Status switch

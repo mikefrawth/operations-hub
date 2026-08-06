@@ -23,7 +23,7 @@
     }
     else if (report is null)
     {
-        <p class="text-body-secondary">Loading department performanceâ€¦</p>
+        <p class="text-body-secondary">Loading department performance…</p>
     }
     else if (report.Count == 0)
     {
@@ -69,11 +69,7 @@
     protected override async Task OnInitializedAsync()
     {
         var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
-        var role = principal.IsInRole("Administrator") ? RequestActorRole.Administrator : RequestActorRole.Manager;
-        var actor = new RequestActor(
-            principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? throw new InvalidOperationException("Authenticated user ID is missing."),
-            role);
+        var actor = RequestActorClaimsMapper.Create(principal);
         var result = await ReportingService.GetDepartmentPerformanceAsync(actor, CancellationToken.None);
         if (result.Succeeded)
         {
@@ -85,9 +81,9 @@
         }
     }
 
-    private static string FormatHours(decimal? hours) => hours.HasValue ? $"{hours.Value:0.0} h" : "â€”";
+    private static string FormatHours(decimal? hours) => hours.HasValue ? $"{hours.Value:0.0} h" : "—";
 
     private static string FormatSla(DepartmentPerformanceDto item) => item.SlaCompliancePercentage.HasValue
         ? $"{item.SlaMetRequests}/{item.SlaEligibleRequests} ({item.SlaCompliancePercentage.Value:0.0}%)"
-        : "â€”";
+        : "—";
 }

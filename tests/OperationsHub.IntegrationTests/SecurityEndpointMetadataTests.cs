@@ -98,10 +98,20 @@ public sealed class SecurityEndpointMetadataTests
             .ToList();
 
         Assert.Equal(9, endpoints.Count);
-        Assert.All(endpoints, endpoint => Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()));
+        Assert.All(
+            endpoints,
+            endpoint => Assert.Contains(
+                endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(),
+                metadata => metadata.Policy == AuthorizationPolicies.OperationsUser));
         Assert.All(
             endpoints.Where(endpoint => !endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods.Contains(HttpMethods.Get, StringComparer.Ordinal)),
             endpoint => Assert.True(endpoint.Metadata.GetMetadata<IAntiforgeryMetadata>()?.RequiresValidation));
+        var classification = Assert.Single(
+            endpoints,
+            endpoint => endpoint.RoutePattern.RawText == "/api/requests/classification");
+        Assert.Equal(
+            ServiceRequestEndpoints.RequestClassificationRateLimitPolicy,
+            classification.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName);
     }
 
     [Fact]
@@ -115,7 +125,11 @@ public sealed class SecurityEndpointMetadataTests
             .ToList();
 
         Assert.Equal(2, endpoints.Count);
-        Assert.All(endpoints, endpoint => Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()));
+        Assert.All(
+            endpoints,
+            endpoint => Assert.Contains(
+                endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(),
+                metadata => metadata.Policy == AuthorizationPolicies.ManagerOrAdministrator));
     }
 
     private static WebApplication CreateApplication()

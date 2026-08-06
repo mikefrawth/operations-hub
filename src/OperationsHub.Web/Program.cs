@@ -1,3 +1,5 @@
+using System.Net;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
@@ -11,6 +13,7 @@ using OperationsHub.Application.Impersonation;
 using OperationsHub.Application.ReferenceData;
 using OperationsHub.Application.Reporting;
 using OperationsHub.Application.Requests;
+using OperationsHub.Infrastructure.Identity;
 using OperationsHub.Infrastructure.Persistence;
 
 const string MigrationSwitch = "--migrate";
@@ -32,11 +35,27 @@ if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
 var trustForwardedHeaders = builder.Configuration.GetValue<bool>("ReverseProxy:TrustForwardedHeaders");
 if (trustForwardedHeaders)
 {
+    var knownProxies = builder.Configuration
+        .GetSection("ReverseProxy:KnownProxies")
+        .Get<string[]>()?
+        .Select(IPAddress.Parse)
+        .ToArray() ?? [];
+    if (knownProxies.Length == 0)
+    {
+        throw new InvalidOperationException("ReverseProxy:KnownProxies must contain at least one IP address when forwarded headers are enabled.");
+    }
+
+    // Forwarded client IPs feed throttling and audit records, so trust only explicitly configured hops.
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
         options.KnownIPNetworks.Clear();
         options.KnownProxies.Clear();
+        foreach (var knownProxy in knownProxies)
+        {
+            options.KnownProxies.Add(knownProxy);
+        }
     });
 }
 
@@ -56,13 +75,30 @@ builder.Services.AddAuthorizationBuilder()
         {
             policy.RequireRole(AuthorizationPolicies.Administrator);
             policy.RequireAssertion(_ => builder.Environment.IsDevelopment());
-        });
+        })
+    .AddPolicy(
+        AuthorizationPolicies.ManagerOrAdministrator,
+        policy => policy.RequireRole(RoleNames.Manager, RoleNames.Administrator))
+    .AddPolicy(
+        AuthorizationPolicies.OperationsUser,
+        policy => policy.RequireRole(RoleNames.Requester, RoleNames.Technician, RoleNames.Manager, RoleNames.Administrator));
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddPolicy(AuthenticationEndpoints.SignInRateLimitPolicy, context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+    options.AddPolicy(ServiceRequestEndpoints.RequestClassificationRateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? $"anonymous:{context.Connection.RemoteIpAddress}",
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 10,
@@ -77,6 +113,7 @@ builder.Services.AddScoped<IReferenceDataAdministrationService, ReferenceDataAdm
 builder.Services.AddScoped<IRequestReportingService, RequestReportingService>();
 builder.Services.AddScoped<IServiceRequestWorkflowService, ServiceRequestWorkflowService>();
 builder.Services.AddScoped<IRequestClassificationService, RequestClassificationService>();
+builder.Services.AddSingleton<IRequestClassificationUsageLimiter, InMemoryRequestClassificationUsageLimiter>();
 builder.Services.AddOperationsHubPersistence(builder.Configuration);
 
 var app = builder.Build();
@@ -139,8 +176,9 @@ app.UseWhen(
             .ExecuteAsync(statusCodeContext.HttpContext)));
 
 app.UseRouting();
-app.UseRateLimiter();
 app.UseAuthentication();
+// User-partitioned endpoint limiters require authentication to populate HttpContext.User first.
+app.UseRateLimiter();
 app.UseAuthorization();
 app.UseAntiforgery();
 

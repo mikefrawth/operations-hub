@@ -86,8 +86,8 @@ Exit gate passed:
 
 - The authenticated workflow UI lets requesters submit and edit permitted requests, provides role-scoped request lists, and presents request detail, comments, status history, and assignment history.
 - The same application service backs the UI and protected REST endpoints for request creation, detail, edit, assignment, status, comments, search, filtering, and pagination.
-- Requesters are limited to their own requests; technicians to their assignments; managers and administrators can view all requests and assign work.
-- Request mutations require antiforgery validation and are covered by endpoint metadata tests; domain tests cover permitted and rejected lifecycle transitions.
+- Requesters are limited to their own requests; technicians to their assignments; managers and administrators can view all requests and assign work only to active Technicians validated server-side.
+- Request mutations require explicit antiforgery validation and are covered by assembled cookie-authenticated HTTP tests plus endpoint metadata tests; domain/application tests cover permitted and rejected lifecycle transitions and fail-closed actor scoping.
 
 ## Milestone 4 — MySQL demonstration and interview-ready MVP
 
@@ -105,7 +105,7 @@ Exit gate passed:
 - Managers and administrators can view the open-request summary backed by a MySQL view.
 - Assignment runs through a parameterized stored-procedure call that locks the request, increments its version, and commits request, assignment-history, and audit writes together.
 - Request updates, status changes, and assignments return a conflict result when their submitted version is stale.
-- MySQL integration tests cover successful procedure writes, stale-version rollback, the reporting view, and the application conflict result.
+- MySQL integration tests cover successful procedure writes, stale-version rollback, resolved/closed assignment behavior, all three persisted open statuses, and the application conflict result.
 
 ## Milestone 5 — engineering hardening
 
@@ -121,7 +121,7 @@ Status: **complete (2026-08-05)**
 Exit gate passed:
 
 - Structured JSON logging, centralized exception handling, safe API Problem Details, database-backed readiness, and process-only liveness remained covered by the assembled host.
-- Security review confirmed server-side authorization, antiforgery metadata on cookie-authenticated mutations, sign-in throttling and lockout, secure cookie settings, safe return URLs, and defensive response headers.
+- Security review confirmed server-side authorization, executed antiforgery validation on cookie-authenticated mutations, sign-in/classification throttling, lockout, secure cookie settings, safe return URLs, explicit forwarded-proxy trust, and defensive response headers.
 - Accessibility cleanup added contextual action names, table captions, readable workflow-state labels, and client validation summaries while preserving page titles, headings, labels, empty states, and the skip link.
 - Request lists now expose the existing bounded search, status/priority filtering, and pagination behavior in the Blazor frontend.
 - Development startup creates an assigned, in-progress scenario with comments and complete history; browser checks verified populated Requester, Technician, Manager, and Administrator views.
@@ -193,6 +193,7 @@ Exit gate passed:
 - Requesters can request a suggestion in the Blazor submission form, review its category, priority, and concise summary, then explicitly apply the category and priority before submitting; no suggestion automatically mutates a request.
 - `IRequestClassificationService` obtains active request types from the server-side reference-data contract and enforces requester-only access.
 - The deterministic implementation is always available and offline-testable. An optional OpenAI Responses API adapter is enabled only with an externally supplied API key, uses structured output, and returns the deterministic suggestion if configuration, transport, or output validation fails.
+- Classification input is bounded to request-creation limits, external-provider calls are limited to ten per authenticated requester per minute, and assembled HTTP/provider-adapter tests verify these boundaries.
 - No key is committed. Use `RequestClassification__OpenAi__ApiKey` as a user secret or environment variable; `RequestClassification__OpenAi__Model` and `RequestClassification__OpenAi__TimeoutSeconds` are optional overrides.
 
 ## Milestone 9 — optional expansion

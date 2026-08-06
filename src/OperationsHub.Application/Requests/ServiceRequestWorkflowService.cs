@@ -53,7 +53,14 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         var page = Math.Max(query.Page, 1);
         var pageSize = Math.Clamp(query.PageSize, 1, 100);
         var normalized = query with { Page = page, PageSize = pageSize, Search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim() };
-        var result = await store.SearchAsync(normalized, actor.Role == RequestActorRole.Requester ? actor.UserId : null, actor.Role == RequestActorRole.Technician ? actor.UserId : null, cancellationToken);
+        var scope = actor.Role switch
+        {
+            RequestActorRole.Requester => (RequesterId: actor.UserId, AssigneeId: (string?)null),
+            RequestActorRole.Technician => (RequesterId: (string?)null, AssigneeId: actor.UserId),
+            RequestActorRole.Manager or RequestActorRole.Administrator => (RequesterId: (string?)null, AssigneeId: (string?)null),
+            _ => throw new ArgumentOutOfRangeException(nameof(actor), "The request actor role is invalid."),
+        };
+        var result = await store.SearchAsync(normalized, scope.RequesterId, scope.AssigneeId, cancellationToken);
         return new PagedResult<ServiceRequestListItemDto>(result.Items.Select(MapList).ToList(), result.Page, result.PageSize, result.TotalCount);
     }
 
@@ -87,9 +94,9 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         if (actor.Role is not (RequestActorRole.Manager or RequestActorRole.Administrator)) return Forbidden<ServiceRequestDetailDto>();
         var assigneeId = command.AssigneeId?.Trim();
         if (string.IsNullOrWhiteSpace(assigneeId)) return Validation<ServiceRequestDetailDto>("assigneeId", "Assignee is required.");
-        if (!await store.UserExistsAsync(assigneeId, cancellationToken)) return Validation<ServiceRequestDetailDto>("assigneeId", "The assignee does not exist.");
-        if (request.Version != command.Version) return Conflict<ServiceRequestDetailDto>();
         var now = timeProvider.GetUtcNow();
+        if (!await store.ActiveTechnicianExistsAsync(assigneeId, now, cancellationToken)) return Validation<ServiceRequestDetailDto>("assigneeId", "An active technician is required.");
+        if (request.Version != command.Version) return Conflict<ServiceRequestDetailDto>();
         var result = await store.AssignUsingProcedureAsync(request.Id, assigneeId, actor.UserId, command.Version, now, cancellationToken);
         if (result.Status == ProcedureAssignmentStatus.NotFound) return NotFound<ServiceRequestDetailDto>();
         if (result.Status == ProcedureAssignmentStatus.Conflict) return Conflict<ServiceRequestDetailDto>();
@@ -141,7 +148,13 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         return null;
     }
 
-    private static bool CanView(RequestActor actor, ServiceRequest request) => actor.Role switch { RequestActorRole.Requester => request.RequesterId == actor.UserId, RequestActorRole.Technician => request.AssigneeId == actor.UserId, _ => true };
+    private static bool CanView(RequestActor actor, ServiceRequest request) => actor.Role switch
+    {
+        RequestActorRole.Requester => request.RequesterId == actor.UserId,
+        RequestActorRole.Technician => request.AssigneeId == actor.UserId,
+        RequestActorRole.Manager or RequestActorRole.Administrator => true,
+        _ => false,
+    };
     private static bool CanManage(RequestActor actor, ServiceRequest request) => actor.Role is RequestActorRole.Manager or RequestActorRole.Administrator || actor.Role == RequestActorRole.Technician && request.AssigneeId == actor.UserId;
     private async Task<ServiceRequestDetailDto> MapAsync(ServiceRequest request, CancellationToken cancellationToken) => new(request.Id, request.RequestNumber, request.Title, request.Description, request.RequestTypeId, request.DepartmentId, request.Status, request.Priority, request.RequesterId, request.AssigneeId, request.CreatedAtUtc, request.UpdatedAtUtc, request.Version, (await store.GetAssignmentsAsync(request.Id, cancellationToken)).Select(x => new RequestAssignmentDto(x.AssigneeId, x.AssignedById, x.AssignedAtUtc)).ToList(), (await store.GetCommentsAsync(request.Id, cancellationToken)).Select(x => new RequestCommentDto(x.AuthorId, x.Body, x.CreatedAtUtc)).ToList(), (await store.GetStatusHistoryAsync(request.Id, cancellationToken)).Select(x => new RequestStatusHistoryDto(x.Status, x.ChangedById, x.ChangedAtUtc)).ToList());
     private static ServiceRequestListItemDto MapList(ServiceRequest x) => new(x.Id, x.RequestNumber, x.Title, x.Status, x.Priority, x.RequesterId, x.AssigneeId, x.CreatedAtUtc, x.UpdatedAtUtc);
