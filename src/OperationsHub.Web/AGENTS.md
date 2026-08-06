@@ -18,6 +18,7 @@ This project is the ASP.NET Core host, Blazor UI, REST API surface, middleware p
 - Provide labels, validation summaries, loading/empty states, and safe error feedback.
 - Enforce authorization server-side even when navigation or controls are hidden.
 - Require executed antiforgery validation on every cookie-authenticated mutation endpoint; metadata alone is insufficient for JSON minimal APIs. Rate-limit credential and external-cost endpoints.
+- Keep first-party OpenAPI metadata synchronized with REST behavior. Expose `/openapi/v1.json` only in Development unless a documented security decision changes that boundary; do not imply that an interactive UI or bearer-token flow exists.
 - Use Problem Details for API errors and retain trace identifiers in safe error responses.
 - Add endpoint and representative authentication/authorization coverage to IntegrationTests.
 - Run `.\eng\dotnet.cmd run --project src/OperationsHub.Web` for local UI checks in native Windows/PowerShell environments.

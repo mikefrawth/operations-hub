@@ -13,12 +13,20 @@ public static class AuthenticationEndpoints
     {
         endpoints.MapPost("/sign-in", SignInAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
-            .RequireRateLimiting(SignInRateLimitPolicy);
+            .RequireRateLimiting(SignInRateLimitPolicy)
+            .ExcludeFromDescription();
         endpoints.MapPost("/sign-out", SignOutAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ExcludeFromDescription();
         endpoints.MapGet("/api/antiforgery", IssueAntiforgeryToken)
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .WithTags("Authentication")
+            .WithName("GetAntiforgeryToken")
+            .WithSummary("Issue antiforgery state")
+            .WithDescription("Stores an antiforgery cookie and returns the request token plus required header name for subsequent cookie-authenticated JSON mutations.")
+            .Produces<AntiforgeryTokenResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         return endpoints;
     }
@@ -78,5 +86,5 @@ public static class AuthenticationEndpoints
         public string? ReturnUrl { get; init; }
     }
 
-    private sealed record AntiforgeryTokenResponse(string RequestToken, string HeaderName);
+    public sealed record AntiforgeryTokenResponse(string RequestToken, string HeaderName);
 }

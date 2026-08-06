@@ -11,9 +11,20 @@ public static class ReportingEndpoints
     public static IEndpointRouteBuilder MapReportingEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/reports")
-            .RequireAuthorization(AuthorizationPolicies.ManagerOrAdministrator);
-        group.MapGet("/department-performance", GetDepartmentPerformanceAsync);
-        group.MapGet("/department-performance.csv", DownloadDepartmentPerformanceCsvAsync);
+            .RequireAuthorization(AuthorizationPolicies.ManagerOrAdministrator)
+            .WithTags("Reporting")
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+        group.MapGet("/department-performance", GetDepartmentPerformanceAsync)
+            .WithName("GetDepartmentPerformance")
+            .WithSummary("Get department performance")
+            .WithDescription("Returns the all-time MySQL reporting-view projection for managers and administrators.")
+            .Produces<IReadOnlyList<DepartmentPerformanceDto>>();
+        group.MapGet("/department-performance.csv", DownloadDepartmentPerformanceCsvAsync)
+            .WithName("DownloadDepartmentPerformanceCsv")
+            .WithSummary("Download department performance as CSV")
+            .WithDescription("Returns the same manager/administrator report as a formula-neutralized CSV file.")
+            .Produces(StatusCodes.Status200OK, contentType: "text/csv");
         return endpoints;
     }
 

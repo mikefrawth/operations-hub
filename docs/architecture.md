@@ -42,6 +42,8 @@ Owns DbContext, entity configurations, Identity persistence, migrations, MySQL-s
 
 Owns Blazor components, REST endpoints, authentication configuration, middleware, dependency injection, OpenAPI, and safe error handling. It translates transport concerns and delegates business operations to Application.
 
+The host uses the first-party ASP.NET Core OpenAPI generator. `GET /openapi/v1.json` is mapped only in `Development`; Production does not expose the document, and no interactive Swagger-style UI is installed. The document covers the authenticated `/api` surface with operation summaries, response metadata, the Identity cookie scheme, and antiforgery header requirements. API consumers must still complete the real HTML sign-in flow, retain authentication and antiforgery cookies, and obtain a request token from `GET /api/antiforgery` before JSON mutations. See [api.md](api.md) for the contract and limitations.
+
 The host writes structured JSON logs, records unhandled request failures with their method and path, uses centralized exception handling, returns RFC 7807 Problem Details for API failures, and exposes an anonymous `/health` endpoint backed by the EF Core database check.
 
 ## Container runtime and delivery

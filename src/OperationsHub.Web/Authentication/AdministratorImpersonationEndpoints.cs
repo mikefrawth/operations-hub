@@ -17,10 +17,12 @@ public static class AdministratorImpersonationEndpoints
     {
         endpoints.MapPost("/administrator-impersonation/start", StartAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
-            .RequireAuthorization(AuthorizationPolicies.AdministratorImpersonation);
+            .RequireAuthorization(AuthorizationPolicies.AdministratorImpersonation)
+            .ExcludeFromDescription();
         endpoints.MapPost("/administrator-impersonation/end", EndAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(true))
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .ExcludeFromDescription();
 
         return endpoints;
     }
