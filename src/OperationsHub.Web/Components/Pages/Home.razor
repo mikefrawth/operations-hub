@@ -16,7 +16,7 @@
     </div>
 
     <div class="row g-3 col-xl-10 mt-3" aria-label="OperationsHub capabilities">
-        <div class="col-md-4">
+        <div class="col-md-6 col-xl-3">
             <section class="border rounded-3 h-100 p-3">
                 <h2 class="h5">Role-aware workflow</h2>
                 <p class="text-body-secondary mb-0">
@@ -24,7 +24,7 @@
                 </p>
             </section>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6 col-xl-3">
             <section class="border rounded-3 h-100 p-3">
                 <h2 class="h5">Auditable MySQL data</h2>
                 <p class="text-body-secondary mb-0">
@@ -32,11 +32,19 @@
                 </p>
             </section>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6 col-xl-3">
+            <section class="border rounded-3 h-100 p-3">
+                <h2 class="h5">Documented REST API</h2>
+                <p class="text-body-secondary mb-0">
+                    Development exposes a first-party OpenAPI contract while cookie authentication and antiforgery remain enforced.
+                </p>
+            </section>
+        </div>
+        <div class="col-md-6 col-xl-3">
             <section class="border rounded-3 h-100 p-3">
                 <h2 class="h5">Continuously verified delivery</h2>
                 <p class="text-body-secondary mb-0">
-                    Every change verifies schema-only migration, the health-checked Docker Compose stack, and the public web experience.
+                    CI covers real-MySQL HTTP lifecycles, schema-only migration, and the health-checked Docker Compose stack.
                 </p>
             </section>
         </div>

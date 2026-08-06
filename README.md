@@ -1,66 +1,60 @@
 # OperationsHub
 
-OperationsHub is an internal service-request and workflow-management application for submitting, assigning, tracking, and auditing operational work. It is a portfolio project designed to demonstrate senior-level, practical engineering with C#, ASP.NET Core, Blazor, relational data, APIs, security, testing, Docker, and technical documentation.
+[![Validate and publish](https://github.com/mikefrawth/operations-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/mikefrawth/operations-hub/actions/workflows/ci.yml)
 
-The project favors a complete modular monolith over microservices or speculative abstractions.
+OperationsHub is a production-minded portfolio application for teams that need to submit, assign, progress, report on, and audit internal service work without losing ownership or history across email and spreadsheets. It uses a pragmatic modular monolith so request workflow, authorization, and audit writes remain understandable and transactionally consistent.
 
-## Current status
+## Architecture at a glance
 
-**Milestones 0–8 are complete. Azure and all other live-production hosting work is Archived / not currently planned; it was deferred to avoid ongoing cloud costs for a portfolio project.**
-
-The solution has a MySQL-backed EF Core context, ASP.NET Core Identity, Development-only demo identities, administrator-only reference-data management, and a complete service-request workflow. Requesters can submit, view, search, filter, and edit permitted requests; technicians work assigned requests; managers and administrators assign and oversee all requests. Assignment, status, comments, and audit history are retained with participant display names. Managers and administrators also have an open-request summary backed by a MySQL view. Development administrators can enter an audited test session as any active single-role non-administrator account and return through a persistent banner. Assignment uses a transactional stored procedure and all versioned request mutations detect stale edits. A multi-stage Linux image and full Docker Compose stack package the web host and MySQL for a one-command local demonstration.
-
-## Technology
-
-- .NET 10 and C#
-- ASP.NET Core and Blazor Web App
-- Global Interactive Server rendering
-- MySQL 8.4 for local development
-- Entity Framework Core and selected handwritten SQL, beginning in Milestone 1
-- ASP.NET Core Identity, beginning in Milestone 1
-- xUnit
-- Docker Compose
-- GitHub Actions for quality and local-container verification, with build-artifact publication to GitHub Container Registry
-
-## Architecture
-
-OperationsHub is split into four source projects:
-
-```text
-Web -> Infrastructure -> Application -> Domain
-  \--------------------> Application
+```mermaid
+flowchart LR
+    Browser["Blazor UI / REST client"] --> Web["Web<br/>ASP.NET Core + Blazor"]
+    Web --> Application["Application<br/>use cases + DTOs"]
+    Web --> Infrastructure["Infrastructure<br/>EF Core + adapters"]
+    Infrastructure --> Application
+    Application --> Domain["Domain<br/>state + invariants"]
+    Infrastructure --> Domain
+    Infrastructure --> MySQL["MySQL 8.4<br/>tables + views + procedure"]
 ```
 
-- **Domain** owns business entities and invariants.
-- **Application** owns use cases, validation, DTOs, and contracts.
-- **Infrastructure** implements database and external concerns.
-- **Web** hosts the Blazor UI, REST API, middleware, and dependency composition.
+The source dependency direction is `Web → Application → Domain` and `Web → Infrastructure → Application/Domain`. See the [architecture guide](docs/architecture.md) and [decision records](docs/decisions).
 
-See [docs/architecture.md](docs/architecture.md) and the records in [docs/decisions](docs/decisions).
+## Engineering highlights
 
-## Quick start with Docker
+- **Modular monolith:** .NET 10, C#, ASP.NET Core, and a Blazor Web App with global Interactive Server rendering and explicit Domain/Application/Infrastructure/Web boundaries.
+- **REST API and OpenAPI:** first-party ASP.NET Core OpenAPI JSON in Development, useful operation/response metadata, cookie-auth documentation, and no added Swagger UI.
+- **Relational depth:** MySQL 8.4, EF Core migrations and routine persistence, parameterized SQL, reporting views, and a transactional assignment stored procedure.
+- **Security and correctness:** ASP.NET Core Identity roles, server-side authorization, executed antiforgery validation, optimistic concurrency, soft deactivation, append-only workflow history, and auditing.
+- **Verification and delivery:** deterministic unit tests, assembled-host and real-MySQL integration tests, GitHub Actions gates, explicit migration-only execution, and Docker Compose smoke tests.
+- **Advisory AI:** optional external classification with disclosure, bounded inputs, rate limiting, human application of suggestions, and a deterministic offline fallback.
 
-The fastest portfolio-review path requires only Git, Docker Engine, and the Docker Compose plugin:
+## Representative application screens
 
-Before running these commands, start Docker Desktop on Windows or macOS, or start the Docker Engine service on Linux. Verify that the daemon is available with `docker info`; if Docker reports that it cannot connect to `dockerDesktopLinuxEngine` (Windows) or the Docker socket, the daemon is not running yet. On Docker Desktop installations that provide the Docker CLI extension, `docker desktop start` starts it; otherwise start Docker Desktop from the application menu.
+| Service-request workflow and participant history | MySQL-backed open-request reporting |
+| --- | --- |
+| ![Service request detail with workflow and participant history](docs/images/service-request-detail.png) | ![Open request summary viewed through administrator impersonation](docs/images/open-request-summary.png) |
+
+## Fastest supported start
+
+With Git and Docker running:
 
 ```powershell
 git clone https://github.com/mikefrawth/operations-hub.git
 cd operations-hub
-Copy-Item .env.example .env
 docker compose up --build --detach
 docker compose ps
 ```
 
-When Docker is up and running, access the web application at `http://localhost:5090`. Compose builds the ASP.NET Core image, starts MySQL, waits for the database health check, starts the web container, applies pending migrations, and initializes the Development-only demo scenario. The demo accounts are listed under [Demo accounts](#demo-accounts).
+Open `http://localhost:5090`. The default Compose values are suitable only for the isolated Development demo; `.env.example` documents optional local overrides. Stop with `docker compose down`.
 
-After the image has been built, start the complete application again with `docker compose up --detach`. Add `--build` whenever the application source or Dockerfile changes. No local .NET SDK or `eng\dotnet` command is required for this Docker workflow.
+## Three-minute demonstration
 
-Restarting Docker Desktop or existing containers does not rebuild the application image. After changing C#, Razor, or CSS files, run `docker compose up --build --detach web` so the web container includes the latest source and static assets.
+1. **0:00–0:30 — Establish health and scope.** Show `docker compose ps`, open `/health/ready`, and explain the four-project modular-monolith diagram above.
+2. **0:30–1:15 — Follow the requester path.** Sign in as the Development Administrator, choose **Test as another user → Demo Requester**, open the seeded request, and point out role-scoped visibility, comments, assignment history, and status history. On **Requests**, show the advisory classifier and its deterministic fallback without submitting sensitive text.
+3. **1:15–2:15 — Switch roles at a real security boundary.** Return through the persistent impersonation banner, test as **Demo Manager**, open **Open request summary**, and assign or progress a request. Explain that the server rechecks authorization, antiforgery state, technician eligibility, and the concurrency version; assignment commits through `sp_assign_request`.
+4. **2:15–3:00 — Show reporting and verification.** Open **Department performance**, then `/openapi/v1.json`. Close on the GitHub Actions badge and the real-MySQL lifecycle test that exercises sign-in, antiforgery, create, update, assignment, status, comment, history, and audit persistence through HTTP.
 
-Use `cp .env.example .env` instead of `Copy-Item` on Linux, macOS, or WSL. Stop the stack with `docker compose down`. The named database and Data Protection volumes survive normal shutdown.
-
-If the browser reports an empty response, first run `docker info` to confirm that the Docker daemon is running. Then run `docker compose ps` and `docker compose logs web`. The `web` service must remain `Up` and become `healthy`; a `Restarting` status means startup failed and the logs contain the underlying error. If MySQL is still starting, wait until `docker compose ps` reports it as `healthy` before investigating the web logs.
+**Current scope:** milestones 0–8 are complete. Azure and all other live-production hosting are **Archived / not currently planned** to avoid ongoing cloud costs; the supported complete demonstration is local Docker Compose.
 
 ## Optional native development workflow
 
@@ -148,6 +142,8 @@ docker compose up --build --detach web
 
 The image health check verifies both process liveness and delivery of the Blazor framework script required for interactive buttons and forms.
 
+If startup fails, confirm the Docker daemon is available with `docker info`, then inspect `docker compose ps` and `docker compose logs web`. The `web` service should remain `Up` and become `healthy`; a `Restarting` state means the web logs contain the startup failure. Restarting existing containers does not rebuild changed source, so use `docker compose up --build --detach web` after C#, Razor, CSS, project-file, or Dockerfile changes.
+
 For native web development, start only MySQL with `docker compose up -d mysql`. To remove both local named volumes, including all database data and persisted local sign-in keys:
 
 ```bash
@@ -175,7 +171,7 @@ The integration test project uses real MySQL. For native test runs, start the di
 
 ### Verified Windows-native commands
 
-The native .NET commands below were reverified successfully in Windows PowerShell on 2026-08-05. In Codex, the wrapper detects `CODEX_CI` or `CODEX_THREAD_ID`, disables build servers, and uses one MSBuild node to avoid sandbox IPC limitations.
+The native .NET commands below were reverified successfully in Windows PowerShell on 2026-08-06. In Codex, the wrapper detects `CODEX_CI` or `CODEX_THREAD_ID`, disables build servers, and uses one MSBuild node to avoid sandbox IPC limitations.
 
 ```powershell
 .\eng\dotnet.cmd restore OperationsHub.sln --verbosity minimal
@@ -189,7 +185,7 @@ docker compose ps
 docker compose run --rm web --migrate
 ```
 
-The build completed with zero warnings and errors, all 59 tests passed, and formatting required no further changes. The container sequence was reverified in an isolated Compose project: the web image built successfully; migration-only mode completed against a fresh database without creating reusable demo credentials, demo role assignments, or the portfolio request; both services reported healthy; `/health/live` and `/health/ready` returned HTTP `200`; and the landing page and Blazor framework asset loaded successfully.
+The build completed with zero warnings and errors, all 62 tests passed (31 unit and 31 integration), and formatting required no further changes. The container sequence was reverified in an isolated Compose project: the web image built successfully; migration-only mode completed against a fresh database without creating reusable demo credentials, demo role assignments, or the portfolio request; both services reported healthy; `/health/live`, `/health/ready`, the landing page, the Blazor framework asset, and `/openapi/v1.json` returned HTTP `200`; and the web process ran as the image's unprivileged `app` user.
 
 ## Database migrations and seed data
 
@@ -218,9 +214,9 @@ Development-only Requester, Technician, Manager, and Administrator accounts are 
 
 After signing in as the Administrator, open **Test as another user** in the navigation to assume a Requester, Technician, or Manager profile without entering another password. A yellow banner stays at the top of the screen, identifies the effective profile on every page, and returns to the original administrator in one click. Signing out from the side navigation during a test session ends the tested profile session and restores the administrator. Start and end transitions are audited. This feature is mapped and authorized only in Development.
 
-## API antiforgery
+## API and OpenAPI
 
-The JSON APIs use the same cookie authentication as the Blazor UI. After signing in, a non-browser client must retain the authentication and antiforgery cookies, request `GET /api/antiforgery`, and send the returned request token in the returned header name for every `POST` or `PUT` request. Missing or invalid tokens are rejected before endpoint code runs.
+The first-party ASP.NET Core OpenAPI document is available at `GET /openapi/v1.json` only in `Development`, including the supported Docker Compose demo. No interactive Swagger-style UI is installed. The JSON APIs use the Blazor UI's Identity cookie rather than bearer tokens or API keys. A client must complete the antiforgery-protected sign-in form, retain the authentication and antiforgery cookies, call `GET /api/antiforgery`, and send the returned token in the returned header for every JSON `POST` or `PUT`. Missing or invalid state is rejected before endpoint code runs. See the [API and OpenAPI guide](docs/api.md) for roles, status semantics, and the consumer flow.
 
 ## Feature status
 
@@ -231,6 +227,7 @@ The JSON APIs use the same cookie authentication as the Blazor UI. After signing
 | Identity and demo users | Implemented in Milestone 1 |
 | Department and request-type administration | Implemented in Milestone 2 |
 | Service-request workflow and REST API | Implemented in Milestone 3 |
+| First-party Development OpenAPI contract | Implemented in interview-readiness hardening |
 | Reporting view, stored procedure, and concurrency | Implemented in Milestone 4 |
 | Development administrator impersonation | Implemented in Milestone 5 |
 | Engineering hardening | Completed in Milestone 5 |
@@ -241,18 +238,6 @@ The JSON APIs use the same cookie authentication as the Blazor UI. After signing
 | Azure or other live-production hosting | **Archived / not currently planned** to avoid ongoing portfolio-project cloud costs |
 
 See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
-
-## Screenshots
-
-The Development portfolio scenario demonstrates an assigned request with status, comments, assignment history, and role-aware controls.
-
-![Service request detail with workflow and participant history](docs/images/service-request-detail.png)
-
-The Manager reporting view is backed by `vw_open_request_summary` and resolves assignee display names without exposing Identity persistence to the UI. Department performance is available at `/reports/department-performance`, with a browser-authenticated CSV export at `/api/reports/department-performance.csv`.
-
-![Open request summary viewed through administrator impersonation](docs/images/open-request-summary.png)
-
-See the [Milestone 5 engineering-hardening review](docs/engineering-hardening-review.md) for the completed security, accessibility, performance, test, and browser-verification checks.
 
 ## Portfolio demonstration
 
@@ -300,7 +285,7 @@ The former Azure/live-production plan is preserved only as an archived future op
 - Compose intentionally runs the web host in `Development` for disposable local demonstrations. Migration-only mode never initializes the public demo identities.
 - Compose stores unencrypted Data Protection keys in a private local named volume for restart-stable demo sessions; this local configuration must not become a persistent public environment.
 - Azure and other live-production hosting are Archived / not currently planned. The optional Quick Tunnel is temporary, has a changing URL and no uptime guarantee, and depends on the demo laptop remaining online.
-- Integration tests cover migrations, Development-only identity initialization and impersonation eligibility, real cookie-authenticated HTTP authorization and antiforgery behavior, endpoint security metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
+- Integration tests cover migrations, Development-only identity initialization and impersonation eligibility, OpenAPI environment/contract behavior, a complete real-cookie and antiforgery API lifecycle, endpoint security metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
 - Request classification is advisory only: requesters can obtain and review a suggested category, priority, and concise summary before explicitly applying category and priority to the submission form. The form warns that title and description text may be sent to a configured external AI service and tells users not to enter sensitive information. Inputs use the same 200-character title and 4,000-character description limits as request creation, provider storage is disabled, and classification calls are limited to ten per authenticated user per minute. Local deterministic rules are always available. Set `RequestClassification__OpenAi__ApiKey` (and optionally `RequestClassification__OpenAi__Model`) only as an environment variable or user secret to enable the optional OpenAI-backed adviser; invalid or unavailable responses fall back to the local rules. No API key belongs in configuration files or source control.
 
 ## License

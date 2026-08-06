@@ -62,6 +62,8 @@ if (trustForwardedHeaders)
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddAntiforgery(options => options.HeaderName = AntiforgeryEndpointConventionExtensions.HeaderName);
+builder.Services.AddOperationsHubOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<OperationsHubDbContext>("database", tags: ["ready"]);
@@ -185,19 +187,20 @@ app.UseAntiforgery();
 if (app.Environment.IsDevelopment())
 {
     await app.Services.InitializeOperationsHubDevelopmentDatabaseAsync();
+    app.MapOpenApi();
     app.MapAdministratorImpersonationEndpoints();
 }
 
 app.MapStaticAssets();
-app.MapHealthChecks("/health").AllowAnonymous();
+app.MapHealthChecks("/health").AllowAnonymous().ExcludeFromDescription();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,
-}).AllowAnonymous();
+}).AllowAnonymous().ExcludeFromDescription();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = healthCheck => healthCheck.Tags.Contains("ready"),
-}).AllowAnonymous();
+}).AllowAnonymous().ExcludeFromDescription();
 app.MapAuthenticationEndpoints();
 app.MapReferenceDataEndpoints();
 app.MapReportingEndpoints();

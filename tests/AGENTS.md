@@ -9,6 +9,7 @@
 - Do not weaken assertions to accommodate broken behavior.
 - Do not use EF Core InMemory for database semantics.
 - Cover authorization, antiforgery, and rate limits through assembled-host HTTP behavior as well as endpoint metadata when adding or changing protected endpoints.
+- Keep OpenAPI exposure tests environment-aware, and validate generated operations rather than only endpoint-registration metadata.
 - Container-backed tests must clean up their own data and explain environmental prerequisites.
 
 Run:

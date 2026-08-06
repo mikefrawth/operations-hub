@@ -197,6 +197,15 @@ Exit gate passed:
 - The submission form discloses possible external AI processing before the requester asks for a suggestion, warns against sensitive input, and disables provider-side response storage.
 - No key is committed. Use `RequestClassification__OpenAi__ApiKey` as a user secret or environment variable; `RequestClassification__OpenAi__Model` and `RequestClassification__OpenAi__TimeoutSeconds` are optional overrides.
 
+## Interview-readiness hardening
+
+Status: **complete (2026-08-06)**
+
+- The first-party ASP.NET Core OpenAPI document describes the secured REST surface at `/openapi/v1.json` in Development only; no interactive UI or bearer-token flow is claimed.
+- Endpoint metadata records useful operation summaries, response schemas/statuses, the Identity cookie scheme, and required antiforgery header state.
+- Assembled-host tests prove Development/non-Development document exposure and exercise a complete Requester/Manager API lifecycle through real sign-in, cookies, antiforgery, routing, serialization, authorization, the assignment procedure, and MySQL persistence.
+- The README opening now provides a one-minute business/architecture/engineering summary, representative screenshots, the shortest Docker start, and a three-minute interview demonstration path.
+
 ## Milestone 9 — optional expansion
 
 Potential work logs, SLA policies, attachments, internal comments, notifications, background jobs, audit search, dashboards, imports, SharePoint design, and responsive refinement. None begins before the MVP is complete and stable.
