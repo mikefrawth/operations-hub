@@ -76,6 +76,7 @@ builder.Services.AddScoped<IAdministratorImpersonationService, AdministratorImpe
 builder.Services.AddScoped<IReferenceDataAdministrationService, ReferenceDataAdministrationService>();
 builder.Services.AddScoped<IRequestReportingService, RequestReportingService>();
 builder.Services.AddScoped<IServiceRequestWorkflowService, ServiceRequestWorkflowService>();
+builder.Services.AddScoped<IRequestClassificationService, RequestClassificationService>();
 builder.Services.AddOperationsHubPersistence(builder.Configuration);
 
 var app = builder.Build();

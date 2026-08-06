@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using OperationsHub.Application.Impersonation;
@@ -77,6 +78,12 @@ public static class OperationsHubPersistenceServiceCollectionExtensions
         services.AddScoped<ITechnicianDirectory, EntityFrameworkTechnicianDirectory>();
         services.AddScoped<IUserDisplayDirectory, EntityFrameworkUserDisplayDirectory>();
         services.AddScoped<IImpersonationStore, EntityFrameworkImpersonationStore>();
+        services.Configure<OpenAiRequestClassificationOptions>(configuration.GetSection(OpenAiRequestClassificationOptions.SectionName));
+        services.AddHttpClient<IOptionalRequestClassificationAdvisor, OpenAiRequestClassificationAdvisor>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<OpenAiRequestClassificationOptions>>().Value;
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 30));
+        });
 
         return services;
     }

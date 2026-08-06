@@ -97,7 +97,7 @@ public sealed class SecurityEndpointMetadataTests
             .Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/api/requests", StringComparison.Ordinal))
             .ToList();
 
-        Assert.Equal(8, endpoints.Count);
+        Assert.Equal(9, endpoints.Count);
         Assert.All(endpoints, endpoint => Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>()));
         Assert.All(
             endpoints.Where(endpoint => !endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods.Contains(HttpMethods.Get, StringComparer.Ordinal)),
@@ -124,6 +124,7 @@ public sealed class SecurityEndpointMetadataTests
         builder.Services.AddAntiforgery();
         builder.Services.AddScoped<IReferenceDataAdministrationService>(_ => null!);
         builder.Services.AddScoped<IServiceRequestWorkflowService>(_ => null!);
+        builder.Services.AddScoped<IRequestClassificationService>(_ => null!);
         builder.Services.AddScoped<IRequestReportingService>(_ => null!);
         builder.Services.AddScoped<IAdministratorImpersonationService>(_ => null!);
         builder.Services.AddScoped<UserManager<ApplicationUser>>(_ => null!);

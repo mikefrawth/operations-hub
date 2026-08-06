@@ -237,6 +237,7 @@ The reference-data API uses the same cookie authentication as the Blazor UI. Aft
 | Container delivery | Dockerfile and full Compose stack implemented for Milestone 6 |
 | CI and local container verification | Implemented in Milestone 6 |
 | Department performance reporting and CSV export | Implemented in Milestone 7 |
+| Advisory request classification | Implemented in Milestone 8 |
 | Azure or other live-production hosting | **Archived / not currently planned** to avoid ongoing portfolio-project cloud costs |
 
 See [docs/roadmap.md](docs/roadmap.md) for the complete sequence.
@@ -300,6 +301,7 @@ The former Azure/live-production plan is preserved only as an archived future op
 - Compose stores unencrypted Data Protection keys in a private local named volume for restart-stable demo sessions; this local configuration must not become a persistent public environment.
 - Azure and other live-production hosting are Archived / not currently planned. The optional Quick Tunnel is temporary, has a changing URL and no uptime guarantee, and depends on the demo laptop remaining online.
 - Integration tests cover migrations, Development-only identity initialization and impersonation eligibility, security endpoint metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
+- Request classification is advisory only: requesters can obtain and review a suggested category, priority, and concise summary before explicitly applying category and priority to the submission form. Local deterministic rules are always available. Set `RequestClassification__OpenAi__ApiKey` (and optionally `RequestClassification__OpenAi__Model`) only as an environment variable or user secret to enable the optional OpenAI-backed adviser; invalid or unavailable responses fall back to the local rules. No API key belongs in configuration files or source control.
 
 ## License
 
