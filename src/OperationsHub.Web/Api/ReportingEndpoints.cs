@@ -59,7 +59,12 @@ public static class ReportingEndpoints
         _ => Results.Problem(),
     };
 
-    private static string Escape(string value) => $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    private static string Escape(string value)
+    {
+        // Spreadsheet applications can execute leading formula characters in an otherwise valid CSV cell.
+        var safeValue = value.Length > 0 && value[0] is '=' or '+' or '-' or '@' or '\t' or '\r' or '\n' ? $"'{value}" : value;
+        return $"\"{safeValue.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    }
 
     private static string FormatDecimal(decimal? value) => value?.ToString("0.0", CultureInfo.InvariantCulture) ?? string.Empty;
 }

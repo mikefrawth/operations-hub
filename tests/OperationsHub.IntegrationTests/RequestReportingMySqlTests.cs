@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MySql.Data.MySqlClient;
 using OperationsHub.Application.Requests;
 using OperationsHub.Domain.Entities;
 using OperationsHub.Domain.Enums;
@@ -46,7 +47,7 @@ public sealed class RequestReportingMySqlTests
             var auditCount = await database.AuditEvents.CountAsync(audit => audit.ServiceRequestId == request.Id && audit.EventType == "request-assigned", CancellationToken.None);
             var staleAttempt = await store.AssignUsingProcedureAsync(request.Id, technicianId, managerId, 0, DateTimeOffset.UtcNow, CancellationToken.None);
             var conflictResponse = await workflow.AssignAsync(actor, request.Id, new AssignServiceRequestCommand(technicianId, 0), CancellationToken.None);
-            var summaries = await store.GetOpenRequestSummariesAsync(CancellationToken.None);
+            var summaries = await store.GetOpenRequestSummariesAsync(1, 100, CancellationToken.None);
 
             Assert.True(assigned.Succeeded);
             Assert.Equal((uint)1, assigned.Value!.Version);
@@ -56,7 +57,7 @@ public sealed class RequestReportingMySqlTests
             Assert.Equal(RequestOperationStatus.Conflict, conflictResponse.Status);
             Assert.Equal(1, await database.RequestAssignments.CountAsync(assignment => assignment.ServiceRequestId == request.Id, CancellationToken.None));
             Assert.Equal(1, await database.AuditEvents.CountAsync(audit => audit.ServiceRequestId == request.Id && audit.EventType == "request-assigned", CancellationToken.None));
-            var summary = Assert.Single(summaries, summary => summary.Id == request.Id);
+            var summary = Assert.Single(summaries.Items, summary => summary.Id == request.Id);
             Assert.Equal(technicianId, summary.AssigneeId);
             Assert.True(summary.Age >= TimeSpan.Zero);
         }
@@ -103,14 +104,18 @@ public sealed class RequestReportingMySqlTests
 
             var resolvedOutcome = await store.AssignUsingProcedureAsync(resolved.Id, technicianId, managerId, 0, now, CancellationToken.None);
             var closedOutcome = await store.AssignUsingProcedureAsync(closed.Id, technicianId, managerId, 0, now, CancellationToken.None);
-            var summaries = await store.GetOpenRequestSummariesAsync(CancellationToken.None);
+            var invalidAssigneeOutcome = await store.AssignUsingProcedureAsync(onHold.Id, requesterId, managerId, 0, now, CancellationToken.None);
+            var summaries = await store.GetOpenRequestSummariesAsync(1, 100, CancellationToken.None);
 
             Assert.Equal(ProcedureAssignmentStatus.Success, resolvedOutcome.Status);
             Assert.Equal(ProcedureAssignmentStatus.Closed, closedOutcome.Status);
-            Assert.Contains(summaries, summary => summary.Id == onHold.Id && summary.Status == ServiceRequestStatus.OnHold);
-            Assert.DoesNotContain(summaries, summary => summary.Id == resolved.Id || summary.Id == closed.Id);
+            Assert.Equal(ProcedureAssignmentStatus.InvalidAssignee, invalidAssigneeOutcome.Status);
+            Assert.Contains(summaries.Items, summary => summary.Id == onHold.Id && summary.Status == ServiceRequestStatus.OnHold);
+            Assert.DoesNotContain(summaries.Items, summary => summary.Id == resolved.Id || summary.Id == closed.Id);
             Assert.False(await database.RequestAssignments.AnyAsync(assignment => assignment.ServiceRequestId == closed.Id, CancellationToken.None));
             Assert.False(await database.AuditEvents.AnyAsync(audit => audit.ServiceRequestId == closed.Id, CancellationToken.None));
+            Assert.False(await database.RequestAssignments.AnyAsync(assignment => assignment.ServiceRequestId == onHold.Id, CancellationToken.None));
+            Assert.False(await database.AuditEvents.AnyAsync(audit => audit.ServiceRequestId == onHold.Id, CancellationToken.None));
         }
         finally
         {
@@ -123,6 +128,54 @@ public sealed class RequestReportingMySqlTests
             await database.ServiceRequests
                 .Where(serviceRequest => serviceRequest.Id == resolved.Id || serviceRequest.Id == closed.Id || serviceRequest.Id == onHold.Id)
                 .ExecuteDeleteAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public async Task AssignmentProcedureRollsBackWhenAWriteFailsUnexpectedly()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
+            ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled";
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Development });
+        builder.Logging.ClearProviders();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:OperationsHub"] = connectionString });
+        builder.Services.AddOperationsHubPersistence(builder.Configuration);
+        using var host = builder.Build();
+        await host.Services.InitializeOperationsHubDevelopmentDatabaseAsync();
+
+        await using var scope = host.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
+        var requestTypeId = await database.RequestTypes.Select(requestType => requestType.Id).FirstAsync(CancellationToken.None);
+        var requesterId = await database.Users.Where(user => user.Email == "requester@operationshub.local").Select(user => user.Id).SingleAsync(CancellationToken.None);
+        var technicianId = await database.Users.Where(user => user.Email == "technician@operationshub.local").Select(user => user.Id).SingleAsync(CancellationToken.None);
+        var request = CreateRequest("Rollback on write failure", requesterId, requestTypeId, DateTimeOffset.UtcNow);
+        database.ServiceRequests.Add(request);
+        await database.SaveChangesAsync(CancellationToken.None);
+
+        try
+        {
+            var store = new EntityFrameworkServiceRequestStore(database);
+
+            await Assert.ThrowsAsync<MySqlException>(() => store.AssignUsingProcedureAsync(
+                request.Id,
+                technicianId,
+                "missing-actor",
+                0,
+                DateTimeOffset.UtcNow,
+                CancellationToken.None));
+
+            database.ChangeTracker.Clear();
+            var persisted = await database.ServiceRequests.AsNoTracking().SingleAsync(item => item.Id == request.Id, CancellationToken.None);
+            Assert.Null(persisted.AssigneeId);
+            Assert.Equal((uint)0, persisted.Version);
+            Assert.False(await database.RequestAssignments.AnyAsync(assignment => assignment.ServiceRequestId == request.Id, CancellationToken.None));
+            Assert.False(await database.AuditEvents.AnyAsync(audit => audit.ServiceRequestId == request.Id, CancellationToken.None));
+        }
+        finally
+        {
+            await database.AuditEvents.Where(audit => audit.ServiceRequestId == request.Id).ExecuteDeleteAsync(CancellationToken.None);
+            await database.RequestAssignments.Where(assignment => assignment.ServiceRequestId == request.Id).ExecuteDeleteAsync(CancellationToken.None);
+            await database.ServiceRequests.Where(serviceRequest => serviceRequest.Id == request.Id).ExecuteDeleteAsync(CancellationToken.None);
         }
     }
 

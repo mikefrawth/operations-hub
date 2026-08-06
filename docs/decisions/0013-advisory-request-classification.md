@@ -8,9 +8,9 @@ Milestone 8 adds useful request-routing assistance, but the application must sta
 
 Expose an `IRequestClassificationService` that only requesters may call. It reads the active request-type catalog from the Application-layer reference-data contract, produces a deterministic category, priority, and concise summary, and never persists a suggestion.
 
-The Blazor submission form displays the suggestion as advisory information. A requester must explicitly apply the suggested category and priority before the ordinary validated request-submission operation receives them.
+The Blazor submission form displays the suggestion as advisory information. A requester must explicitly apply the suggested category and priority before the ordinary validated request-submission operation receives them. Beside the action, the UI discloses that request text may be sent to a configured external AI provider and tells requesters not to enter secrets, personal data, or other sensitive information.
 
-An optional Infrastructure adapter can call the OpenAI Responses API when an externally supplied API key enables it. Its structured response is validated against the active category IDs, priority enum, and non-empty summary. Missing configuration, an unsuccessful response, malformed output, or an adapter exception always leaves the deterministic suggestion in place. API keys are environment variables or user secrets and are never committed.
+An optional Infrastructure adapter can call the OpenAI Responses API when an externally supplied API key enables it. Provider-side response storage is disabled. Its structured response is validated against the active category IDs, priority enum, and non-empty summary. Missing configuration, an unsuccessful response, malformed output, or an adapter exception always leaves the deterministic suggestion in place. API keys are environment variables or user secrets and are never committed.
 
 ## Consequences
 

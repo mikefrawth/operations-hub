@@ -194,6 +194,7 @@ Exit gate passed:
 - `IRequestClassificationService` obtains active request types from the server-side reference-data contract and enforces requester-only access.
 - The deterministic implementation is always available and offline-testable. An optional OpenAI Responses API adapter is enabled only with an externally supplied API key, uses structured output, and returns the deterministic suggestion if configuration, transport, or output validation fails.
 - Classification input is bounded to request-creation limits, external-provider calls are limited to ten per authenticated requester per minute, and assembled HTTP/provider-adapter tests verify these boundaries.
+- The submission form discloses possible external AI processing before the requester asks for a suggestion, warns against sensitive input, and disables provider-side response storage.
 - No key is committed. Use `RequestClassification__OpenAi__ApiKey` as a user secret or environment variable; `RequestClassification__OpenAi__Model` and `RequestClassification__OpenAi__TimeoutSeconds` are optional overrides.
 
 ## Milestone 9 — optional expansion

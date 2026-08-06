@@ -15,11 +15,11 @@
     {
         <div class="alert alert-danger" role="alert">@errorMessage</div>
     }
-    else if (summaries is null)
+    else if (report is null)
     {
         <p class="text-body-secondary">Loading open requests…</p>
     }
-    else if (summaries.Count == 0)
+    else if (report.Items.Count == 0)
     {
         <div class="alert alert-light border" role="status">There are no open requests.</div>
     }
@@ -30,7 +30,7 @@
                 <caption class="visually-hidden">Open requests from the MySQL reporting view.</caption>
                 <thead><tr><th scope="col">Request</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Assignee</th><th scope="col">Age</th><th scope="col">Updated</th></tr></thead>
                 <tbody>
-                    @foreach (var summary in summaries)
+                    @foreach (var summary in report.Items)
                     {
                         <tr>
                             <td><a href="requests/@summary.Id">@summary.RequestNumber</a><br /><span class="small text-body-secondary">@summary.Title</span></td>
@@ -41,23 +41,31 @@
                 </tbody>
             </table>
         </div>
+        <nav class="d-flex align-items-center justify-content-between" aria-label="Open request summary pages">
+            <button class="btn btn-outline-secondary" type="button" @onclick="PreviousPageAsync" disabled="@(report.Page <= 1)">Previous</button>
+            <span>Page @report.Page · @report.TotalCount total requests</span>
+            <button class="btn btn-outline-secondary" type="button" @onclick="NextPageAsync" disabled="@(report.Page * report.PageSize >= report.TotalCount)">Next</button>
+        </nav>
     }
 </div>
 
 @code {
-    private IReadOnlyList<OpenRequestSummaryDto>? summaries;
+    private PagedResult<OpenRequestSummaryDto>? report;
     private IReadOnlyDictionary<string, string> userDisplayNames = new Dictionary<string, string>();
     private string? errorMessage;
+    private int currentPage = 1;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
         var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
         var actor = RequestActorClaimsMapper.Create(principal);
-        var result = await RequestService.GetOpenRequestSummariesAsync(actor, CancellationToken.None);
+        var result = await RequestService.GetOpenRequestSummariesAsync(actor, new OpenRequestSummaryQuery(currentPage), CancellationToken.None);
         if (result.Succeeded)
         {
-            summaries = result.Value;
-            var userIds = summaries!
+            report = result.Value;
+            var userIds = report!.Items
                 .SelectMany(summary => new[] { summary.RequesterId, summary.AssigneeId })
                 .OfType<string>()
                 .Distinct(StringComparer.Ordinal)
@@ -66,6 +74,20 @@
                 .ToDictionary(user => user.Id, user => user.DisplayName, StringComparer.Ordinal);
         }
         else errorMessage = "The open-request summary is unavailable.";
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        if (currentPage <= 1) return;
+        currentPage--;
+        await LoadAsync();
+    }
+
+    private async Task NextPageAsync()
+    {
+        if (report is null || report.Page * report.PageSize >= report.TotalCount) return;
+        currentPage++;
+        await LoadAsync();
     }
 
     private string DisplayUser(string? userId) => userId is null

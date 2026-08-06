@@ -68,9 +68,12 @@
                         <ValidationMessage For="() => newRequest.Description" />
                     </div>
                     <div class="col-12 d-flex flex-wrap align-items-center gap-2">
-                        <button class="btn btn-outline-primary" type="button" @onclick="GetSuggestionAsync" disabled="@isClassifying">@(isClassifying ? "Preparing suggestion…" : "Suggest category and priority")</button>
+                        <button class="btn btn-outline-primary" type="button" @onclick="GetSuggestionAsync" disabled="@isClassifying" aria-describedby="classification-data-notice">@(isClassifying ? "Preparing suggestion…" : "Suggest category and priority")</button>
                         <button class="btn btn-primary" type="submit">Submit request</button>
                     </div>
+                    <p id="classification-data-notice" class="col-12 small text-body-secondary mb-0">
+                        Suggestions may use a configured external AI service. Do not include passwords, secrets, personal data, or other sensitive information.
+                    </p>
 
                     @if (classificationSuggestion is not null)
                     {
@@ -104,7 +107,7 @@
             <div class="row g-3 align-items-end">
                 <div class="col-lg-5">
                     <label class="form-label" for="request-search">Search requests</label>
-                    <InputText id="request-search" type="search" class="form-control" @bind-Value="searchInput.Search" placeholder="Request number or title" />
+                    <InputText id="request-search" type="search" class="form-control" @bind-Value="searchInput.Search" maxlength="200" placeholder="Request number or title" />
                 </div>
                 <div class="col-sm-6 col-lg-2">
                     <label class="form-label" for="request-status-filter">Status</label>

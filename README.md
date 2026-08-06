@@ -189,7 +189,7 @@ docker compose ps
 docker compose run --rm web --migrate
 ```
 
-The build completed with zero warnings and errors, all 34 tests passed, and formatting required no further changes. The container sequence was reverified in an isolated Compose project: the web image built successfully; migration-only mode completed against a fresh database without creating reusable demo credentials, demo role assignments, or the portfolio request; both services reported healthy; `/health/live` and `/health/ready` returned HTTP `200`; and the landing page and Blazor framework asset loaded successfully.
+The build completed with zero warnings and errors, all 59 tests passed, and formatting required no further changes. The container sequence was reverified in an isolated Compose project: the web image built successfully; migration-only mode completed against a fresh database without creating reusable demo credentials, demo role assignments, or the portfolio request; both services reported healthy; `/health/live` and `/health/ready` returned HTTP `200`; and the landing page and Blazor framework asset loaded successfully.
 
 ## Database migrations and seed data
 
@@ -202,7 +202,7 @@ Development startup applies migrations automatically. For native tooling, restor
   --startup-project src/OperationsHub.Web
 ```
 
-The remediation migration removes role assignments and disables the fixed demo identities that the initial migration historically created. The web host recreates their password and role assignments only when it starts in the Development environment. See [docs/database.md](docs/database.md) for the schema, ER diagram, migration behavior, and seed data.
+Fresh migration history never creates demo identities, password hashes, or user-role assignments. The retained remediation migration disables those credentials for databases that applied an earlier revision of the initial migration. The web host creates or restores the demo password and roles only when it starts in the Development environment. See [docs/database.md](docs/database.md) for the schema, ER diagram, migration behavior, and seed data.
 
 The container image also provides a migration-only mode that does not start the HTTP server or initialize Development demo accounts:
 
@@ -301,7 +301,7 @@ The former Azure/live-production plan is preserved only as an archived future op
 - Compose stores unencrypted Data Protection keys in a private local named volume for restart-stable demo sessions; this local configuration must not become a persistent public environment.
 - Azure and other live-production hosting are Archived / not currently planned. The optional Quick Tunnel is temporary, has a changing URL and no uptime guarantee, and depends on the demo laptop remaining online.
 - Integration tests cover migrations, Development-only identity initialization and impersonation eligibility, real cookie-authenticated HTTP authorization and antiforgery behavior, endpoint security metadata, reference-data administration, and the MySQL reporting/transaction/concurrency workflow.
-- Request classification is advisory only: requesters can obtain and review a suggested category, priority, and concise summary before explicitly applying category and priority to the submission form. Inputs use the same 200-character title and 4,000-character description limits as request creation, and classification calls are limited to ten per authenticated user per minute. Local deterministic rules are always available. Set `RequestClassification__OpenAi__ApiKey` (and optionally `RequestClassification__OpenAi__Model`) only as an environment variable or user secret to enable the optional OpenAI-backed adviser; invalid or unavailable responses fall back to the local rules. No API key belongs in configuration files or source control.
+- Request classification is advisory only: requesters can obtain and review a suggested category, priority, and concise summary before explicitly applying category and priority to the submission form. The form warns that title and description text may be sent to a configured external AI service and tells users not to enter sensitive information. Inputs use the same 200-character title and 4,000-character description limits as request creation, provider storage is disabled, and classification calls are limited to ten per authenticated user per minute. Local deterministic rules are always available. Set `RequestClassification__OpenAi__ApiKey` (and optionally `RequestClassification__OpenAi__Model`) only as an environment variable or user secret to enable the optional OpenAI-backed adviser; invalid or unavailable responses fall back to the local rules. No API key belongs in configuration files or source control.
 
 ## License
 

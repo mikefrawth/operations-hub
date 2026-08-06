@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OperationsHub.Application.Requests;
 using OperationsHub.Domain.Entities;
-using OperationsHub.Infrastructure.Identity;
 using OperationsHub.Infrastructure.Persistence;
 using System.Data.Common;
 
@@ -15,16 +14,6 @@ public sealed class EntityFrameworkServiceRequestStore : IServiceRequestStore
 
     public Task<bool> RequestTypeIsActiveAsync(Guid id, CancellationToken cancellationToken) => database.RequestTypes.AnyAsync(x => x.Id == id && x.IsActive, cancellationToken);
     public Task<bool> DepartmentIsActiveAsync(Guid id, CancellationToken cancellationToken) => database.Departments.AnyAsync(x => x.Id == id && x.IsActive, cancellationToken);
-    public Task<bool> ActiveTechnicianExistsAsync(string id, DateTimeOffset asOfUtc, CancellationToken cancellationToken) =>
-        (
-            from user in database.Users
-            join userRole in database.UserRoles on user.Id equals userRole.UserId
-            join role in database.Roles on userRole.RoleId equals role.Id
-            where user.Id == id &&
-                  role.Name == RoleNames.Technician &&
-                  (user.LockoutEnd == null || user.LockoutEnd <= asOfUtc)
-            select user.Id)
-        .AnyAsync(cancellationToken);
     public Task<ServiceRequest?> FindAsync(Guid id, CancellationToken cancellationToken) => database.ServiceRequests.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     public Task RefreshAsync(ServiceRequest request, CancellationToken cancellationToken) => database.Entry(request).ReloadAsync(cancellationToken);
     public async Task<IReadOnlyList<RequestAssignment>> GetAssignmentsAsync(Guid requestId, CancellationToken cancellationToken) => await database.RequestAssignments.AsNoTracking().Where(x => x.ServiceRequestId == requestId).OrderBy(x => x.AssignedAtUtc).ToListAsync(cancellationToken);
@@ -40,22 +29,30 @@ public sealed class EntityFrameworkServiceRequestStore : IServiceRequestStore
         if (query.Priority.HasValue) requests = requests.Where(x => x.Priority == query.Priority.Value);
         if (query.Search is not null) requests = requests.Where(x => x.RequestNumber.Contains(query.Search) || x.Title.Contains(query.Search));
         var total = await requests.CountAsync(cancellationToken);
-        var items = await requests.OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.RequestNumber).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync(cancellationToken);
+        var offset = checked((query.Page - 1) * query.PageSize);
+        var items = await requests.OrderByDescending(x => x.UpdatedAtUtc).ThenBy(x => x.RequestNumber).Skip(offset).Take(query.PageSize).ToListAsync(cancellationToken);
         return new PagedResult<ServiceRequest>(items, query.Page, query.PageSize, total);
     }
 
-    public async Task<IReadOnlyList<OpenRequestSummaryDto>> GetOpenRequestSummariesAsync(CancellationToken cancellationToken)
+    public async Task<PagedResult<OpenRequestSummaryDto>> GetOpenRequestSummariesAsync(int page, int pageSize, CancellationToken cancellationToken)
     {
-        const string sql = """
+        const string countSql = "SELECT COUNT(*) FROM vw_open_request_summary";
+        const string pageSql = """
             SELECT id, request_number, title, status, priority, requester_id, assignee_id, created_at_utc, updated_at_utc, age_seconds
             FROM vw_open_request_summary
             ORDER BY updated_at_utc DESC, request_number
+            LIMIT @pageSize OFFSET @offset
             """;
         var connection = database.Database.GetDbConnection();
         await database.Database.OpenConnectionAsync(cancellationToken);
         try
         {
-            await using var command = CreateCommand(connection, sql);
+            await using var countCommand = CreateCommand(connection, countSql);
+            var total = Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken), System.Globalization.CultureInfo.InvariantCulture);
+
+            await using var command = CreateCommand(connection, pageSql);
+            AddParameter(command, "@pageSize", pageSize);
+            AddParameter(command, "@offset", checked((page - 1) * pageSize));
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             var summaries = new List<OpenRequestSummaryDto>();
             while (await reader.ReadAsync(cancellationToken))
@@ -73,7 +70,7 @@ public sealed class EntityFrameworkServiceRequestStore : IServiceRequestStore
                     TimeSpan.FromSeconds(reader.GetInt64(9))));
             }
 
-            return summaries;
+            return new PagedResult<OpenRequestSummaryDto>(summaries, page, pageSize, total);
         }
         finally
         {
@@ -102,6 +99,7 @@ public sealed class EntityFrameworkServiceRequestStore : IServiceRequestStore
                 "not_found" => ProcedureAssignmentStatus.NotFound,
                 "conflict" => ProcedureAssignmentStatus.Conflict,
                 "closed" => ProcedureAssignmentStatus.Closed,
+                "invalid_assignee" => ProcedureAssignmentStatus.InvalidAssignee,
                 var outcome => throw new InvalidOperationException($"Unexpected assignment procedure outcome '{outcome}'."),
             };
             return new ProcedureAssignmentResult(status, reader.IsDBNull(1) ? null : reader.GetFieldValue<uint>(1));

@@ -10,7 +10,7 @@ public sealed class ServiceRequestWorkflowServiceTests
     public async Task AssignAsyncRejectsAnIdentityUserWhoIsNotAnActiveTechnician()
     {
         var request = CreateRequest();
-        var store = new WorkflowStore(request) { ActiveTechnicianExists = false };
+        var store = new WorkflowStore(request) { AssignmentStatus = ProcedureAssignmentStatus.InvalidAssignee };
         var service = new ServiceRequestWorkflowService(store, TimeProvider.System);
 
         var result = await service.AssignAsync(
@@ -21,7 +21,7 @@ public sealed class ServiceRequestWorkflowServiceTests
 
         Assert.Equal(RequestOperationStatus.ValidationFailed, result.Status);
         Assert.Contains("assigneeId", result.Errors.Keys);
-        Assert.Equal(0, store.ProcedureCalls);
+        Assert.Equal(1, store.ProcedureCalls);
     }
 
     [Fact]
@@ -33,6 +33,37 @@ public sealed class ServiceRequestWorkflowServiceTests
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
             () => service.SearchAsync(actor, new ServiceRequestSearchQuery(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task SearchAsyncBoundsPageSizeOffsetAndSearchLength()
+    {
+        var store = new WorkflowStore(CreateRequest());
+        var service = new ServiceRequestWorkflowService(store, TimeProvider.System);
+
+        await service.SearchAsync(
+            new RequestActor("manager", RequestActorRole.Manager),
+            new ServiceRequestSearchQuery(int.MaxValue, int.MaxValue, $"  {new string('a', 250)}  "),
+            CancellationToken.None);
+
+        Assert.Equal(ServiceRequestSearchQuery.MaximumPage, store.LastSearchQuery!.Page);
+        Assert.Equal(ServiceRequestSearchQuery.MaximumPageSize, store.LastSearchQuery.PageSize);
+        Assert.Equal(ServiceRequestSearchQuery.MaximumSearchLength, store.LastSearchQuery.Search!.Length);
+    }
+
+    [Fact]
+    public async Task OpenSummaryAsyncBoundsRequestedPage()
+    {
+        var store = new WorkflowStore(CreateRequest());
+        var service = new ServiceRequestWorkflowService(store, TimeProvider.System);
+
+        var result = await service.GetOpenRequestSummariesAsync(
+            new RequestActor("manager", RequestActorRole.Manager),
+            new OpenRequestSummaryQuery(int.MaxValue, int.MaxValue),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal((ServiceRequestSearchQuery.MaximumPage, ServiceRequestSearchQuery.MaximumPageSize), store.LastOpenSummaryPage);
     }
 
     private static ServiceRequest CreateRequest() => new(
@@ -51,16 +82,17 @@ public sealed class ServiceRequestWorkflowServiceTests
 
         public WorkflowStore(ServiceRequest request) => this.request = request;
 
-        public bool ActiveTechnicianExists { get; init; }
+        public ProcedureAssignmentStatus AssignmentStatus { get; init; } = ProcedureAssignmentStatus.Success;
 
         public int ProcedureCalls { get; private set; }
+
+        public ServiceRequestSearchQuery? LastSearchQuery { get; private set; }
+
+        public (int Page, int PageSize) LastOpenSummaryPage { get; private set; }
 
         public Task<bool> RequestTypeIsActiveAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(true);
 
         public Task<bool> DepartmentIsActiveAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(true);
-
-        public Task<bool> ActiveTechnicianExistsAsync(string id, DateTimeOffset asOfUtc, CancellationToken cancellationToken) =>
-            Task.FromResult(ActiveTechnicianExists);
 
         public Task<ServiceRequest?> FindAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult<ServiceRequest?>(id == request.Id ? request : null);
@@ -76,16 +108,22 @@ public sealed class ServiceRequestWorkflowServiceTests
         public Task<IReadOnlyList<RequestStatusHistory>> GetStatusHistoryAsync(Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<RequestStatusHistory>>([]);
 
-        public Task<PagedResult<ServiceRequest>> SearchAsync(ServiceRequestSearchQuery query, string? requesterId, string? assigneeId, CancellationToken cancellationToken) =>
-            Task.FromResult(new PagedResult<ServiceRequest>([], query.Page, query.PageSize, 0));
+        public Task<PagedResult<ServiceRequest>> SearchAsync(ServiceRequestSearchQuery query, string? requesterId, string? assigneeId, CancellationToken cancellationToken)
+        {
+            LastSearchQuery = query;
+            return Task.FromResult(new PagedResult<ServiceRequest>([], query.Page, query.PageSize, 0));
+        }
 
-        public Task<IReadOnlyList<OpenRequestSummaryDto>> GetOpenRequestSummariesAsync(CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyList<OpenRequestSummaryDto>>([]);
+        public Task<PagedResult<OpenRequestSummaryDto>> GetOpenRequestSummariesAsync(int page, int pageSize, CancellationToken cancellationToken)
+        {
+            LastOpenSummaryPage = (page, pageSize);
+            return Task.FromResult(new PagedResult<OpenRequestSummaryDto>([], page, pageSize, 0));
+        }
 
         public Task<ProcedureAssignmentResult> AssignUsingProcedureAsync(Guid requestId, string assigneeId, string actorId, uint expectedVersion, DateTimeOffset assignedAtUtc, CancellationToken cancellationToken)
         {
             ProcedureCalls++;
-            return Task.FromResult(new ProcedureAssignmentResult(ProcedureAssignmentStatus.Success, expectedVersion + 1));
+            return Task.FromResult(new ProcedureAssignmentResult(AssignmentStatus, expectedVersion + 1));
         }
 
         public void Add(ServiceRequest serviceRequest) => throw new NotSupportedException();
