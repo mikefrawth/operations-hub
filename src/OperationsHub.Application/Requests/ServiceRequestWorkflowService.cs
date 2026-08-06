@@ -50,9 +50,16 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
 
     public async Task<PagedResult<ServiceRequestListItemDto>> SearchAsync(RequestActor actor, ServiceRequestSearchQuery query, CancellationToken cancellationToken)
     {
-        var page = Math.Max(query.Page, 1);
-        var pageSize = Math.Clamp(query.PageSize, 1, 100);
-        var normalized = query with { Page = page, PageSize = pageSize, Search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim() };
+        var page = Math.Clamp(query.Page, 1, ServiceRequestSearchQuery.MaximumPage);
+        var pageSize = Math.Clamp(query.PageSize, 1, ServiceRequestSearchQuery.MaximumPageSize);
+        var search = query.Search?.Trim();
+        if (search?.Length > ServiceRequestSearchQuery.MaximumSearchLength)
+        {
+            search = search[..ServiceRequestSearchQuery.MaximumSearchLength];
+        }
+
+        if (string.IsNullOrEmpty(search)) search = null;
+        var normalized = query with { Page = page, PageSize = pageSize, Search = search };
         var scope = actor.Role switch
         {
             RequestActorRole.Requester => (RequesterId: actor.UserId, AssigneeId: (string?)null),
@@ -64,10 +71,12 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         return new PagedResult<ServiceRequestListItemDto>(result.Items.Select(MapList).ToList(), result.Page, result.PageSize, result.TotalCount);
     }
 
-    public async Task<RequestOperationResult<IReadOnlyList<OpenRequestSummaryDto>>> GetOpenRequestSummariesAsync(RequestActor actor, CancellationToken cancellationToken)
+    public async Task<RequestOperationResult<PagedResult<OpenRequestSummaryDto>>> GetOpenRequestSummariesAsync(RequestActor actor, OpenRequestSummaryQuery query, CancellationToken cancellationToken)
     {
-        if (actor.Role is not (RequestActorRole.Manager or RequestActorRole.Administrator)) return Forbidden<IReadOnlyList<OpenRequestSummaryDto>>();
-        return Success(await store.GetOpenRequestSummariesAsync(cancellationToken));
+        if (actor.Role is not (RequestActorRole.Manager or RequestActorRole.Administrator)) return Forbidden<PagedResult<OpenRequestSummaryDto>>();
+        var page = Math.Clamp(query.Page, 1, ServiceRequestSearchQuery.MaximumPage);
+        var pageSize = Math.Clamp(query.PageSize, 1, ServiceRequestSearchQuery.MaximumPageSize);
+        return Success(await store.GetOpenRequestSummariesAsync(page, pageSize, cancellationToken));
     }
 
     public async Task<RequestOperationResult<ServiceRequestDetailDto>> UpdateAsync(RequestActor actor, Guid id, UpdateServiceRequestCommand command, CancellationToken cancellationToken)
@@ -95,12 +104,12 @@ public sealed class ServiceRequestWorkflowService : IServiceRequestWorkflowServi
         var assigneeId = command.AssigneeId?.Trim();
         if (string.IsNullOrWhiteSpace(assigneeId)) return Validation<ServiceRequestDetailDto>("assigneeId", "Assignee is required.");
         var now = timeProvider.GetUtcNow();
-        if (!await store.ActiveTechnicianExistsAsync(assigneeId, now, cancellationToken)) return Validation<ServiceRequestDetailDto>("assigneeId", "An active technician is required.");
         if (request.Version != command.Version) return Conflict<ServiceRequestDetailDto>();
         var result = await store.AssignUsingProcedureAsync(request.Id, assigneeId, actor.UserId, command.Version, now, cancellationToken);
         if (result.Status == ProcedureAssignmentStatus.NotFound) return NotFound<ServiceRequestDetailDto>();
         if (result.Status == ProcedureAssignmentStatus.Conflict) return Conflict<ServiceRequestDetailDto>();
         if (result.Status == ProcedureAssignmentStatus.Closed) return Validation<ServiceRequestDetailDto>("status", "Closed requests cannot be assigned.");
+        if (result.Status == ProcedureAssignmentStatus.InvalidAssignee) return Validation<ServiceRequestDetailDto>("assigneeId", "An active technician is required.");
         await store.RefreshAsync(request, cancellationToken);
         return Success(await MapAsync(request, cancellationToken));
     }

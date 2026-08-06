@@ -68,6 +68,7 @@ public sealed class DevelopmentPortfolioScenarioMySqlTests
             CancellationToken.None);
         var openSummary = await workflow.GetOpenRequestSummariesAsync(
             new RequestActor(ManagerId, RequestActorRole.Manager),
+            new OpenRequestSummaryQuery(),
             CancellationToken.None);
         var auditEvents = await database.AuditEvents
             .AsNoTracking()
@@ -88,7 +89,7 @@ public sealed class DevelopmentPortfolioScenarioMySqlTests
         Assert.Single(technicianDetail.Value.Assignments);
         Assert.Equal(2, technicianDetail.Value.StatusHistory.Count);
         Assert.Equal(2, technicianDetail.Value.Comments.Count);
-        var summary = Assert.Single(openSummary.Value!, item => item.Id == PortfolioRequestId);
+        var summary = Assert.Single(openSummary.Value!.Items, item => item.Id == PortfolioRequestId);
         Assert.Equal(ServiceRequestStatus.InProgress, summary.Status);
         Assert.Equal(TechnicianId, summary.AssigneeId);
         Assert.Contains("request-created", auditEvents);

@@ -411,17 +411,6 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.InsertData(
-                table: "AspNetUsers",
-                columns: new[] { "Id", "AccessFailedCount", "ConcurrencyStamp", "DisplayName", "Email", "EmailConfirmed", "LockoutEnabled", "LockoutEnd", "NormalizedEmail", "NormalizedUserName", "PasswordHash", "PhoneNumber", "PhoneNumberConfirmed", "SecurityStamp", "TwoFactorEnabled", "UserName" },
-                values: new object[,]
-                {
-                    { "10000000-0000-4000-8000-000000000001", 0, "10000000-0000-4000-8000-000000000001", "Demo Requester", "requester@operationshub.local", true, false, null, "REQUESTER@OPERATIONSHUB.LOCAL", "REQUESTER@OPERATIONSHUB.LOCAL", "AQAAAAIAAYagAAAAEMWG1AkO1GvM7MAvuvUkbCR+Cpvj6T7Tsl1ncuhgnJh9xdXfQCihdQQydyF+Aoe1Bw==", null, false, "10000000-0000-4000-8000-000000000001", false, "requester@operationshub.local" },
-                    { "10000000-0000-4000-8000-000000000002", 0, "10000000-0000-4000-8000-000000000002", "Demo Technician", "technician@operationshub.local", true, false, null, "TECHNICIAN@OPERATIONSHUB.LOCAL", "TECHNICIAN@OPERATIONSHUB.LOCAL", "AQAAAAIAAYagAAAAEKqXzGSJ4LCc4rgGriOFk/Xc7bs17cZqQ3C2/gt8XMYY6dnLxhKpTEaKj9vvWQb9bw==", null, false, "10000000-0000-4000-8000-000000000002", false, "technician@operationshub.local" },
-                    { "10000000-0000-4000-8000-000000000003", 0, "10000000-0000-4000-8000-000000000003", "Demo Manager", "manager@operationshub.local", true, false, null, "MANAGER@OPERATIONSHUB.LOCAL", "MANAGER@OPERATIONSHUB.LOCAL", "AQAAAAIAAYagAAAAEIFCG1AJJI1TJ71/8LzrLcFdYDBixbAa/xRqEG2BKnuG7DzncTJyDNjMEnJLggm81w==", null, false, "10000000-0000-4000-8000-000000000003", false, "manager@operationshub.local" },
-                    { "10000000-0000-4000-8000-000000000004", 0, "10000000-0000-4000-8000-000000000004", "Demo Administrator", "administrator@operationshub.local", true, false, null, "ADMINISTRATOR@OPERATIONSHUB.LOCAL", "ADMINISTRATOR@OPERATIONSHUB.LOCAL", "AQAAAAIAAYagAAAAENBuiU0xPMDBnGChDta1qRgLqc6Lsp7pxVIZz52nUIb1pZOGsmQaUYV42Z/pmCtAmg==", null, false, "10000000-0000-4000-8000-000000000004", false, "administrator@operationshub.local" }
-                });
-
-            migrationBuilder.InsertData(
                 table: "departments",
                 columns: new[] { "id", "created_at_utc", "is_active", "name" },
                 values: new object[,]
@@ -437,17 +426,6 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
                 {
                     { new Guid("30000000-0000-4000-8000-000000000001"), new DateTimeOffset(new DateTime(2026, 7, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "Request access to an internal system or service.", true, "Access request" },
                     { new Guid("30000000-0000-4000-8000-000000000002"), new DateTimeOffset(new DateTime(2026, 7, 28, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)), "Report an issue with a workplace or facility.", true, "Facilities issue" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "AspNetUserRoles",
-                columns: new[] { "RoleId", "UserId" },
-                values: new object[,]
-                {
-                    { "REQUESTER", "10000000-0000-4000-8000-000000000001" },
-                    { "TECHNICIAN", "10000000-0000-4000-8000-000000000002" },
-                    { "MANAGER", "10000000-0000-4000-8000-000000000003" },
-                    { "ADMINISTRATOR", "10000000-0000-4000-8000-000000000004" }
                 });
 
             migrationBuilder.CreateIndex(

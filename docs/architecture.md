@@ -69,9 +69,9 @@ Bootstrap is sufficient for the MVP. Components should prioritize accessibility,
 
 ## Request lifecycle
 
-Milestone 3 uses the persisted states `New`, `InProgress`, `OnHold`, `Resolved`, and `Closed`. Domain methods allow only deliberate transitions; Application use cases enforce actor permissions and validate that an assignee is an active Technician. Successful assignment and status changes update current state and append history/audit records in the same transaction.
+Milestone 3 uses the persisted states `New`, `InProgress`, `OnHold`, `Resolved`, and `Closed`. Domain methods allow only deliberate transitions and validate persistence-sized request state; Application use cases enforce actor permissions. Successful assignment and status changes update current state and append history/audit records in the same transaction.
 
-Milestone 4 retains EF Core for ordinary request operations but demonstrates selected MySQL concerns explicitly. The reporting summary is read from `vw_open_request_summary` through a parameterized database command. Manager/administrator assignment calls `sp_assign_request`, which locks the request, performs the current-row and append-only-history writes in one transaction, and reports a stale version without a partial commit. The Application layer exposes only outcome DTOs, keeping MySQL command and procedure details in Infrastructure.
+Milestone 4 retains EF Core for ordinary request operations but demonstrates selected MySQL concerns explicitly. The reporting summary is read in bounded pages from `vw_open_request_summary` through parameterized database commands. Manager/administrator assignment calls `sp_assign_request`, which locks the request and active-Technician Identity rows, performs the current-row and append-only-history writes in one transaction, and rolls back expected rejections or unexpected SQL failures without a partial commit. The Application layer exposes only outcome DTOs, keeping MySQL command and procedure details in Infrastructure.
 
 ## Authentication and authorization
 
@@ -79,11 +79,11 @@ ASP.NET Core Identity provides Requester, Technician, Manager, and Administrator
 
 Forwarded headers remain disabled by default. Enabling them requires at least one explicit `ReverseProxy:KnownProxies` IP address and accepts only one forwarding hop because the resulting client IP is used for authentication throttling and impersonation audit context.
 
-Fixed demo identities are a Development-only runtime concern. The current EF model seeds stable roles and reference data, but not users or password hashes. The remediation migration disables the historical demo identities for migration-only and non-Development runs; guarded Development startup restores the local demo password and role assignments.
+Fixed demo identities are a Development-only runtime concern. Fresh EF migration history seeds stable roles and reference data, but not users, password hashes, or user-role assignments. The remediation migration remains for databases created from an earlier revision; guarded Development startup creates or restores the local demo password and role assignments.
 
 Development administrators can start an audited test session as an active account with exactly one Requester, Technician, or Manager role. The target Identity principal receives only that effective role; protected cookie claims retain the original administrator identity for the persistent return banner. Start and return are antiforgery-protected POST operations, return revalidates the original Administrator role, and neither the endpoints nor navigation are mapped outside Development. Normal workflow audit entries identify the effective target user, while paired impersonation events identify the initiating administrator. See [decision 0009](decisions/0009-development-administrator-impersonation.md).
 
-Managers and administrators select assignees from an Infrastructure-backed technician directory exposed through an Application contract. Assignment validation still checks the selected Identity user on the server before the transactional procedure runs.
+Managers and administrators select assignees from an Infrastructure-backed technician directory exposed through an Application contract. The transactional procedure revalidates and locks the selected Identity user's active Technician eligibility before any assignment write, so a concurrent role or lockout change cannot bypass the server boundary.
 
 Request detail and reporting components resolve the bounded set of visible participant IDs through a separate Application directory contract. Infrastructure implements that lookup with a no-tracking Identity query, so Razor components display names without referencing `ApplicationUser`, EF Core, or the DbContext.
 
@@ -93,7 +93,9 @@ EF Core will handle aggregate persistence, relationship mapping, migrations, and
 
 This mixed approach demonstrates both maintainable application persistence and deliberate database capability without forcing ordinary CRUD through procedures.
 
-Milestone 7 introduces `IRequestReportingService` and `IReportingStore` for manager/administrator reporting. Infrastructure reads the stable `vw_department_performance` view and returns Application DTOs; the Blazor page and the read-only JSON/CSV endpoints do not depend on EF Core or MySQL types. This makes the CSV export an immediately usable Power BI import surface without introducing a second reporting implementation.
+Milestone 7 introduces `IRequestReportingService` and `IReportingStore` for manager/administrator reporting. Infrastructure reads the stable `vw_department_performance` view and returns Application DTOs; the Blazor page and the read-only JSON/CSV endpoints do not depend on EF Core or MySQL types. The CSV boundary prefixes leading formula characters before quoting text cells. This makes the export an immediately usable Power BI import surface without introducing a second reporting implementation.
+
+Milestone 8 keeps classification advisory and offline-capable. The request form discloses possible external AI processing before invocation and warns against sensitive input; the optional provider request disables response storage, while deterministic classification remains the fallback.
 
 ## Major tradeoffs
 

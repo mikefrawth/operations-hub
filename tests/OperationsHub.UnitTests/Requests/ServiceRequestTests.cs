@@ -38,4 +38,53 @@ public sealed class ServiceRequestTests
 
         Assert.Equal((uint)1, request.Version);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ConstructorRejectsMissingTitles(string title)
+    {
+        Assert.Throws<ArgumentException>(() => new ServiceRequest(
+            Guid.NewGuid(),
+            "SR-TEST-INVARIANT",
+            title,
+            "A valid description.",
+            "requester",
+            Guid.NewGuid(),
+            ServiceRequestPriority.Normal,
+            DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void ConstructorRejectsValuesThatCannotBePersisted()
+    {
+        Assert.Throws<ArgumentException>(() => new ServiceRequest(
+            Guid.NewGuid(),
+            new string('R', ServiceRequest.RequestNumberMaximumLength + 1),
+            "Title",
+            "Description",
+            "requester",
+            Guid.NewGuid(),
+            ServiceRequestPriority.Normal,
+            DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ServiceRequest(
+            Guid.NewGuid(),
+            "SR-TEST-INVARIANT",
+            "Title",
+            "Description",
+            "requester",
+            Guid.NewGuid(),
+            (ServiceRequestPriority)999,
+            DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void UpdateRejectsEmptyReferencesAndOversizedText()
+    {
+        var request = new ServiceRequest(Guid.NewGuid(), "SR-TEST-INVARIANT", "Title", "Description", "requester", Guid.NewGuid(), ServiceRequestPriority.Normal, DateTimeOffset.UtcNow);
+
+        Assert.Throws<ArgumentException>(() => request.Update(new string('T', ServiceRequest.TitleMaximumLength + 1), "Description", Guid.NewGuid(), ServiceRequestPriority.Normal, null, DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => request.Update("Title", "Description", Guid.Empty, ServiceRequestPriority.Normal, null, DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => request.Update("Title", "Description", Guid.NewGuid(), ServiceRequestPriority.Normal, Guid.Empty, DateTimeOffset.UtcNow));
+    }
 }

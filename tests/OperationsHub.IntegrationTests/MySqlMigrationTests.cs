@@ -65,7 +65,7 @@ public sealed class MySqlMigrationTests
     }
 
     [Fact]
-    public async Task RemediationDisablesDemoCredentialsUntilDevelopmentInitializationRestoresThem()
+    public async Task EveryFreshMigrationStageAvoidsExecutableDemoCredentials()
     {
         var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
             ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled";
@@ -89,25 +89,18 @@ public sealed class MySqlMigrationTests
             var context = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
             var migrator = context.GetService<IMigrator>();
 
+            await migrator.MigrateAsync("0");
             await migrator.MigrateAsync("20260729003606_InitialDatabaseAndIdentity");
+            context.ChangeTracker.Clear();
+
+            Assert.False(await context.Users.AnyAsync(CancellationToken.None));
+            Assert.False(await context.UserRoles.AnyAsync(CancellationToken.None));
+
             await migrator.MigrateAsync("20260729101935_RemoveDemoIdentityFromSchemaSeed");
             context.ChangeTracker.Clear();
 
-            var disabledAdministrator = await context.Users.SingleAsync(
-                user => user.Email == "administrator@operationshub.local",
-                CancellationToken.None);
-            var disabledRoleIds = await context.UserRoles
-                .Where(userRole => userRole.UserId == disabledAdministrator.Id)
-                .Select(userRole => userRole.RoleId)
-                .ToListAsync(CancellationToken.None);
-            var hasAdministratorRole = disabledRoleIds.Contains(
-                RoleNames.Administrator,
-                StringComparer.OrdinalIgnoreCase);
-
-            Assert.Null(disabledAdministrator.PasswordHash);
-            Assert.True(disabledAdministrator.LockoutEnabled);
-            Assert.True(disabledAdministrator.LockoutEnd > DateTimeOffset.UtcNow);
-            Assert.False(hasAdministratorRole);
+            Assert.False(await context.Users.AnyAsync(CancellationToken.None));
+            Assert.False(await context.UserRoles.AnyAsync(CancellationToken.None));
         }
         finally
         {

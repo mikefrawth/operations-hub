@@ -8,6 +8,8 @@ Milestone 5 closed on 2026-08-05 after implementation review, real-MySQL testing
 - Cookie-authenticated mutation endpoints carry antiforgery requirements; JSON APIs explicitly reject invalid antiforgery state before handlers run. Sign-in and optional external request classification are rate-limited.
 - Identity lockout, HTTP-only same-site cookies, safe local return URLs, defensive response headers, centralized exception handling, and non-disclosing API Problem Details remain in place.
 - Development identities, impersonation, and the portfolio scenario remain behind the Development environment guard. Migration-only mode does not initialize them.
+- Every fresh migration stage avoids executable demo credentials; the compatibility remediation remains for databases created before the migration-history correction.
+- Assignment authorization is atomic with its state/history writes, and CSV exports neutralize leading spreadsheet formula characters.
 - No secrets, production credentials, or hosted-environment dependencies were introduced.
 
 ## Accessibility and frontend behavior
@@ -20,17 +22,17 @@ Milestone 5 closed on 2026-08-05 after implementation review, real-MySQL testing
 
 ## Performance and data access
 
-- Request searches remain server-side, no-tracking, ordered, and paged. The application clamps page size to 100; the frontend requests 10 rows per page.
+- Request searches remain server-side, no-tracking, ordered, and paged. The application bounds page number, page size, and search length; the frontend requests 10 rows per page.
 - Existing indexes support request role filters, status and recency queries, request numbers, and chronological history access.
 - Participant names are loaded in one bounded, no-tracking query per detail or summary load. The directory accepts at most 100 distinct IDs and returns only identifiers and display names.
-- The reporting summary continues to use the stable MySQL view and parameterized database command.
+- The reporting summary continues to use the stable MySQL view and parameterized database commands, now with a bounded count-and-page query and matching Blazor controls.
 - No synthetic load test or production capacity claim was made.
 
 ## Test and browser evidence
 
-- The solution contains 25 deterministic unit tests and 24 integration tests, all passing against the current build.
+- The solution contains 31 deterministic unit tests and 28 integration tests, all passing against the current build.
 - Assembled-host tests now sign in through the real Identity form/cookie flow and verify API `401`/`403`, valid and invalid antiforgery requests, per-user classification throttling, and recognized-role policies. Metadata tests remain as fast structural coverage rather than the sole security evidence.
-- MySQL coverage verifies resolved/closed assignment behavior, `OnHold` open reporting, stale rollback, and active-Technician enforcement; provider-adapter tests cover successful structured classification output and rejected provider requests.
+- MySQL coverage verifies resolved/closed assignment behavior, `OnHold` open reporting, stale rollback, active-Technician enforcement, and rollback after an unexpected write failure; provider-adapter tests cover successful structured classification output and rejected provider requests.
 - The new real-MySQL portfolio-scenario test verifies role-scoped search visibility for Requester, Technician, Manager, and Administrator; assigned/open reporting; participant display lookup; comments; status and assignment history; and audit events.
 - Browser checks verified administrator reference-data actions, request search and filters, requester validation, the technician's populated assigned-request view, the manager reporting view, contextual action names, captions, and participant display names.
 - Screenshots in `docs/images` were captured from the verified Development application through administrator impersonation.

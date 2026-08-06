@@ -4,8 +4,10 @@ namespace OperationsHub.Domain.Entities;
 
 public sealed class ServiceRequest
 {
+    public const int RequestNumberMaximumLength = 32;
     public const int TitleMaximumLength = 200;
     public const int DescriptionMaximumLength = 4_000;
+    public const int UserIdMaximumLength = 255;
     private ServiceRequest()
     {
     }
@@ -20,6 +22,15 @@ public sealed class ServiceRequest
         ServiceRequestPriority priority,
         DateTimeOffset createdAtUtc)
     {
+        if (id == Guid.Empty) throw new ArgumentException("A request ID is required.", nameof(id));
+        ValidateText(requestNumber, RequestNumberMaximumLength, nameof(requestNumber));
+        ValidateText(title, TitleMaximumLength, nameof(title));
+        ValidateText(description, DescriptionMaximumLength, nameof(description));
+        ValidateText(requesterId, UserIdMaximumLength, nameof(requesterId));
+        if (requestTypeId == Guid.Empty) throw new ArgumentException("A request type ID is required.", nameof(requestTypeId));
+        if (!Enum.IsDefined(priority)) throw new ArgumentOutOfRangeException(nameof(priority));
+        EnsureUtc(createdAtUtc, nameof(createdAtUtc));
+
         Id = id;
         RequestNumber = requestNumber;
         Title = title;
@@ -60,12 +71,17 @@ public sealed class ServiceRequest
 
     public void Update(string title, string description, Guid requestTypeId, ServiceRequestPriority priority, Guid? departmentId, DateTimeOffset updatedAtUtc)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        ArgumentException.ThrowIfNullOrWhiteSpace(description);
         if (Status is ServiceRequestStatus.Resolved or ServiceRequestStatus.Closed)
         {
             throw new InvalidOperationException("Resolved and closed requests cannot be edited.");
         }
+
+        ValidateText(title, TitleMaximumLength, nameof(title));
+        ValidateText(description, DescriptionMaximumLength, nameof(description));
+        if (requestTypeId == Guid.Empty) throw new ArgumentException("A request type ID is required.", nameof(requestTypeId));
+        if (departmentId == Guid.Empty) throw new ArgumentException("A department ID cannot be empty.", nameof(departmentId));
+        if (!Enum.IsDefined(priority)) throw new ArgumentOutOfRangeException(nameof(priority));
+        EnsureUtc(updatedAtUtc, nameof(updatedAtUtc));
 
         Title = title;
         Description = description;
@@ -77,11 +93,13 @@ public sealed class ServiceRequest
 
     public void Assign(string assigneeId, DateTimeOffset updatedAtUtc)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(assigneeId);
         if (Status == ServiceRequestStatus.Closed)
         {
             throw new InvalidOperationException("Closed requests cannot be assigned.");
         }
+
+        ValidateText(assigneeId, UserIdMaximumLength, nameof(assigneeId));
+        EnsureUtc(updatedAtUtc, nameof(updatedAtUtc));
 
         AssigneeId = assigneeId;
         UpdatedAtUtc = updatedAtUtc;
@@ -93,6 +111,8 @@ public sealed class ServiceRequest
         {
             throw new InvalidOperationException($"A request cannot transition from {Status} to {status}.");
         }
+
+        EnsureUtc(updatedAtUtc, nameof(updatedAtUtc));
 
         Status = status;
         UpdatedAtUtc = updatedAtUtc;
@@ -112,4 +132,21 @@ public sealed class ServiceRequest
             ServiceRequestStatus.Resolved => next is ServiceRequestStatus.InProgress or ServiceRequestStatus.Closed,
             _ => false,
         };
+
+    private static void ValidateText(string value, int maximumLength, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
+        if (value.Length > maximumLength)
+        {
+            throw new ArgumentException($"The value cannot exceed {maximumLength} characters.", parameterName);
+        }
+    }
+
+    private static void EnsureUtc(DateTimeOffset value, string parameterName)
+    {
+        if (value.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException("The timestamp must use the UTC offset.", parameterName);
+        }
+    }
 }

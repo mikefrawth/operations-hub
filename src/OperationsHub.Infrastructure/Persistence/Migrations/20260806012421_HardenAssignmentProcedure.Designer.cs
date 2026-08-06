@@ -11,8 +11,8 @@ using OperationsHub.Infrastructure.Persistence;
 namespace OperationsHub.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(OperationsHubDbContext))]
-    [Migration("20260729003606_InitialDatabaseAndIdentity")]
-    partial class InitialDatabaseAndIdentity
+    [Migration("20260806012421_HardenAssignmentProcedure")]
+    partial class HardenAssignmentProcedure
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -159,7 +159,6 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("AspNetUserRoles", (string)null);
-
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
@@ -377,6 +376,8 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ServiceRequestId", "ChangedAtUtc");
 
+                    b.HasIndex("Status", "ServiceRequestId", "ChangedAtUtc");
+
                     b.ToTable("request_status_history", (string)null);
                 });
 
@@ -497,7 +498,6 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
 
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("int unsigned")
                         .HasColumnName("version");
 
@@ -516,48 +516,11 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status", "CreatedAtUtc");
 
+                    b.HasIndex("Status", "UpdatedAtUtc");
+
+                    b.HasIndex("DepartmentId", "Status", "CreatedAtUtc");
+
                     b.ToTable("service_requests", (string)null);
-                });
-
-            modelBuilder.Entity("OperationsHub.Domain.Entities.WorkLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasColumnName("id");
-
-                    b.Property<string>("AuthorId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("author_id");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasPrecision(6)
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("created_at_utc");
-
-                    b.Property<decimal>("Hours")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("hours");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)")
-                        .HasColumnName("note");
-
-                    b.Property<Guid>("ServiceRequestId")
-                        .HasColumnType("char(36)")
-                        .HasColumnName("service_request_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AuthorId");
-
-                    b.HasIndex("ServiceRequestId", "CreatedAtUtc");
-
-                    b.ToTable("work_logs", (string)null);
                 });
 
             modelBuilder.Entity("OperationsHub.Infrastructure.Identity.ApplicationUser", b =>
@@ -626,7 +589,6 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -766,21 +728,6 @@ namespace OperationsHub.Infrastructure.Persistence.Migrations
                     b.HasOne("OperationsHub.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("RequesterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("OperationsHub.Domain.Entities.WorkLog", b =>
-                {
-                    b.HasOne("OperationsHub.Infrastructure.Identity.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("AuthorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("OperationsHub.Domain.Entities.ServiceRequest", null)
-                        .WithMany()
-                        .HasForeignKey("ServiceRequestId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -9,13 +9,17 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OperationsHub.Application.Requests;
+using OperationsHub.Domain.Entities;
+using OperationsHub.Domain.Enums;
 using OperationsHub.Infrastructure.Identity;
+using OperationsHub.Infrastructure.Persistence;
 
 namespace OperationsHub.IntegrationTests;
 
@@ -46,6 +50,19 @@ public sealed class WebApplicationSecurityTests : IClassFixture<OperationsHubWeb
     }
 
     [Fact]
+    public async Task RequestPageDisclosesPossibleExternalClassificationProcessing()
+    {
+        using var client = CreateClient(RoleNames.Requester, $"notice-requester-{Guid.NewGuid():N}");
+
+        using var response = await client.GetAsync("/requests", CancellationToken.None);
+        var html = await response.Content.ReadAsStringAsync(CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("may use a configured external AI service", html, StringComparison.Ordinal);
+        Assert.Contains("Do not include passwords, secrets, personal data", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RequestApiReturnsForbiddenWhenAuthenticatedUserHasNoOperationsRole()
     {
         using var client = CreateClient("Unrecognized", "http-unrecognized");
@@ -58,7 +75,8 @@ public sealed class WebApplicationSecurityTests : IClassFixture<OperationsHubWeb
     [Fact]
     public async Task ClassificationApiRejectsMissingAntiforgeryTokenAndRateLimitsRepeatedCalls()
     {
-        using var client = await CreateRequesterCookieClientAsync();
+        // A unique identity keeps this quota assertion independent of other tests using the shared app fixture.
+        using var client = CreateClient(RoleNames.Requester, $"rate-limit-{Guid.NewGuid():N}");
         var command = new RequestClassificationCommand("Cannot sign in", "I am locked out.");
 
         var statuses = new List<HttpStatusCode>();
@@ -96,6 +114,45 @@ public sealed class WebApplicationSecurityTests : IClassFixture<OperationsHubWeb
             CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DepartmentPerformanceCsvNeutralizesSpreadsheetFormulas()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
+        var department = new Department(Guid.NewGuid(), "=2+3", DateTimeOffset.UtcNow);
+        var requestTypeId = await database.RequestTypes.Select(item => item.Id).FirstAsync(CancellationToken.None);
+        var requesterId = await database.Users.Where(user => user.Email == "requester@operationshub.local").Select(user => user.Id).SingleAsync(CancellationToken.None);
+        var request = new ServiceRequest(
+            Guid.NewGuid(),
+            $"SR-CSV-{Guid.NewGuid():N}"[..32],
+            "CSV encoding test",
+            "Verify exported fields cannot be interpreted as formulas.",
+            requesterId,
+            requestTypeId,
+            ServiceRequestPriority.Normal,
+            DateTimeOffset.UtcNow);
+        request.Update(request.Title, request.Description, request.RequestTypeId, request.Priority, department.Id, DateTimeOffset.UtcNow);
+        database.Departments.Add(department);
+        database.ServiceRequests.Add(request);
+        await database.SaveChangesAsync(CancellationToken.None);
+
+        try
+        {
+            using var client = CreateClient(RoleNames.Manager, $"csv-manager-{Guid.NewGuid():N}");
+            using var response = await client.GetAsync("/api/reports/department-performance.csv", CancellationToken.None);
+            var csv = await response.Content.ReadAsStringAsync(CancellationToken.None);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains("\"'=2+3\"", csv, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"=2+3\"", csv, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await database.ServiceRequests.Where(item => item.Id == request.Id).ExecuteDeleteAsync(CancellationToken.None);
+            await database.Departments.Where(item => item.Id == department.Id).ExecuteDeleteAsync(CancellationToken.None);
+        }
     }
 
     private HttpClient CreateClient(string? role = null, string? userId = null)
