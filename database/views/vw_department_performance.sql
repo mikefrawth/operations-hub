@@ -15,6 +15,7 @@ SELECT
         CASE
             WHEN resolution.resolved_at_utc IS NOT NULL
                 AND TIMESTAMPDIFF(SECOND, service_request.created_at_utc, resolution.resolved_at_utc) <=
+                    -- Persisted priorities: Critical = 4, High = 3, Normal = 2, Low = 1.
                     CASE service_request.priority
                         WHEN 4 THEN 14400
                         WHEN 3 THEN 28800
@@ -29,6 +30,7 @@ LEFT JOIN departments AS department ON department.id = service_request.departmen
 LEFT JOIN (
     SELECT service_request_id, MIN(changed_at_utc) AS resolved_at_utc
     FROM request_status_history
+    -- Persisted terminal statuses: Resolved = 4, Closed = 5.
     WHERE status IN (4, 5)
     GROUP BY service_request_id
 ) AS resolution ON resolution.service_request_id = service_request.id

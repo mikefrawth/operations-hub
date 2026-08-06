@@ -24,8 +24,6 @@ public sealed class OperationsHubDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<RequestStatusHistory> RequestStatusHistories => Set<RequestStatusHistory>();
 
-    public DbSet<WorkLog> WorkLogs => Set<WorkLog>();
-
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder builder)

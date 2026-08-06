@@ -67,4 +67,77 @@ public sealed class RequestReportingMySqlTests
             await database.ServiceRequests.Where(serviceRequest => serviceRequest.Id == request.Id).ExecuteDeleteAsync(CancellationToken.None);
         }
     }
+
+    [Fact]
+    public async Task AssignmentProcedureAllowsResolvedRejectsClosedAndReportsOnHoldRequests()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("OPERATIONS_HUB_TEST_CONNECTION")
+            ?? "Server=127.0.0.1;Port=3307;Database=operationshub;User=operationshub;Password=operationshub_dev_only;SslMode=Disabled";
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Development });
+        builder.Logging.ClearProviders();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:OperationsHub"] = connectionString });
+        builder.Services.AddOperationsHubPersistence(builder.Configuration);
+        using var host = builder.Build();
+        await host.Services.InitializeOperationsHubDevelopmentDatabaseAsync();
+
+        await using var scope = host.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<OperationsHubDbContext>();
+        var requestTypeId = await database.RequestTypes.Select(requestType => requestType.Id).FirstAsync(CancellationToken.None);
+        var requesterId = await database.Users.Where(user => user.Email == "requester@operationshub.local").Select(user => user.Id).SingleAsync(CancellationToken.None);
+        var technicianId = await database.Users.Where(user => user.Email == "technician@operationshub.local").Select(user => user.Id).SingleAsync(CancellationToken.None);
+        var managerId = await database.Users.Where(user => user.Email == "manager@operationshub.local").Select(user => user.Id).SingleAsync(CancellationToken.None);
+        var now = DateTimeOffset.UtcNow;
+        var resolved = CreateRequest("Resolved assignment", requesterId, requestTypeId, now.AddMinutes(-3));
+        resolved.ChangeStatus(ServiceRequestStatus.InProgress, now.AddMinutes(-2));
+        resolved.ChangeStatus(ServiceRequestStatus.Resolved, now.AddMinutes(-1));
+        var closed = CreateRequest("Closed assignment", requesterId, requestTypeId, now.AddMinutes(-3));
+        closed.ChangeStatus(ServiceRequestStatus.Closed, now.AddMinutes(-1));
+        var onHold = CreateRequest("On-hold reporting", requesterId, requestTypeId, now.AddMinutes(-3));
+        onHold.ChangeStatus(ServiceRequestStatus.OnHold, now.AddMinutes(-1));
+        database.ServiceRequests.AddRange(resolved, closed, onHold);
+        await database.SaveChangesAsync(CancellationToken.None);
+
+        try
+        {
+            var store = new EntityFrameworkServiceRequestStore(database);
+
+            var resolvedOutcome = await store.AssignUsingProcedureAsync(resolved.Id, technicianId, managerId, 0, now, CancellationToken.None);
+            var closedOutcome = await store.AssignUsingProcedureAsync(closed.Id, technicianId, managerId, 0, now, CancellationToken.None);
+            var summaries = await store.GetOpenRequestSummariesAsync(CancellationToken.None);
+
+            Assert.Equal(ProcedureAssignmentStatus.Success, resolvedOutcome.Status);
+            Assert.Equal(ProcedureAssignmentStatus.Closed, closedOutcome.Status);
+            Assert.Contains(summaries, summary => summary.Id == onHold.Id && summary.Status == ServiceRequestStatus.OnHold);
+            Assert.DoesNotContain(summaries, summary => summary.Id == resolved.Id || summary.Id == closed.Id);
+            Assert.False(await database.RequestAssignments.AnyAsync(assignment => assignment.ServiceRequestId == closed.Id, CancellationToken.None));
+            Assert.False(await database.AuditEvents.AnyAsync(audit => audit.ServiceRequestId == closed.Id, CancellationToken.None));
+        }
+        finally
+        {
+            await database.AuditEvents
+                .Where(audit => audit.ServiceRequestId == resolved.Id || audit.ServiceRequestId == closed.Id || audit.ServiceRequestId == onHold.Id)
+                .ExecuteDeleteAsync(CancellationToken.None);
+            await database.RequestAssignments
+                .Where(assignment => assignment.ServiceRequestId == resolved.Id || assignment.ServiceRequestId == closed.Id || assignment.ServiceRequestId == onHold.Id)
+                .ExecuteDeleteAsync(CancellationToken.None);
+            await database.ServiceRequests
+                .Where(serviceRequest => serviceRequest.Id == resolved.Id || serviceRequest.Id == closed.Id || serviceRequest.Id == onHold.Id)
+                .ExecuteDeleteAsync(CancellationToken.None);
+        }
+    }
+
+    private static ServiceRequest CreateRequest(
+        string title,
+        string requesterId,
+        Guid requestTypeId,
+        DateTimeOffset createdAtUtc) =>
+        new(
+            Guid.NewGuid(),
+            $"SR-TEST-{Guid.NewGuid():N}"[..32],
+            title,
+            "Verify persisted workflow status behavior.",
+            requesterId,
+            requestTypeId,
+            ServiceRequestPriority.Normal,
+            createdAtUtc);
 }

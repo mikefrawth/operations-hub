@@ -31,7 +31,7 @@ public sealed class TechnicianDirectoryMySqlTests
             new IdentityUserRole<string> { UserId = lockedId, RoleId = RoleNames.Technician.ToUpperInvariant() });
         await context.SaveChangesAsync(CancellationToken.None);
 
-        var directory = new EntityFrameworkTechnicianDirectory(context);
+        var directory = new EntityFrameworkTechnicianDirectory(context, TimeProvider.System);
         var technicians = await directory.GetActiveTechniciansAsync(CancellationToken.None);
 
         Assert.Contains(technicians, technician => technician.Id == activeId && technician.DisplayName == "Active Technician");

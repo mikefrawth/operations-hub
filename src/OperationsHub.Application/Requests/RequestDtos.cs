@@ -20,7 +20,7 @@ public sealed record ServiceRequestDetailDto(Guid Id, string RequestNumber, stri
 public sealed record OpenRequestSummaryDto(Guid Id, string RequestNumber, string Title, ServiceRequestStatus Status, ServiceRequestPriority Priority, string RequesterId, string? AssigneeId, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc, TimeSpan Age);
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
 
-public enum RequestOperationStatus { Success, ValidationFailed, NotFound, Forbidden, Conflict }
+public enum RequestOperationStatus { Success, ValidationFailed, NotFound, Forbidden, Conflict, RateLimited }
 public sealed record RequestOperationResult<T>(RequestOperationStatus Status, T? Value, IReadOnlyDictionary<string, string[]> Errors)
 {
     public bool Succeeded => Status == RequestOperationStatus.Success;

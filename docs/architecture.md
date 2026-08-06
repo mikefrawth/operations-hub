@@ -69,13 +69,15 @@ Bootstrap is sufficient for the MVP. Components should prioritize accessibility,
 
 ## Request lifecycle
 
-Milestone 3 uses the persisted states `New`, `InProgress`, `OnHold`, `Resolved`, and `Closed`. Domain methods allow only deliberate transitions; Application use cases enforce actor permissions. Successful assignment and status changes update current state and append history/audit records in the same EF Core save operation.
+Milestone 3 uses the persisted states `New`, `InProgress`, `OnHold`, `Resolved`, and `Closed`. Domain methods allow only deliberate transitions; Application use cases enforce actor permissions and validate that an assignee is an active Technician. Successful assignment and status changes update current state and append history/audit records in the same transaction.
 
 Milestone 4 retains EF Core for ordinary request operations but demonstrates selected MySQL concerns explicitly. The reporting summary is read from `vw_open_request_summary` through a parameterized database command. Manager/administrator assignment calls `sp_assign_request`, which locks the request, performs the current-row and append-only-history writes in one transaction, and reports a stale version without a partial commit. The Application layer exposes only outcome DTOs, keeping MySQL command and procedure details in Infrastructure.
 
 ## Authentication and authorization
 
-ASP.NET Core Identity provides Requester, Technician, Manager, and Administrator roles with an HTTP-only, same-site cookie. UI visibility improves usability, while the Web server boundary enforces administrative access. Cookie-authenticated mutation endpoints require antiforgery validation. Sign-in is throttled per remote IP, failed-password attempts lock eligible accounts, and unsafe return URLs are rejected. Public registration is not part of the initial plan.
+ASP.NET Core Identity provides Requester, Technician, Manager, and Administrator roles with an HTTP-only, same-site cookie. A single claims mapper converts recognized roles into Application actors, while endpoint/page policies reject authenticated accounts with no OperationsHub role. UI visibility improves usability, while the Web server boundary enforces access. Cookie-authenticated JSON mutations explicitly validate antiforgery state before invoking application code. Sign-in is throttled per remote IP, request classification is throttled per authenticated user, failed-password attempts lock eligible accounts, and unsafe return URLs are rejected. Public registration is not part of the initial plan.
+
+Forwarded headers remain disabled by default. Enabling them requires at least one explicit `ReverseProxy:KnownProxies` IP address and accepts only one forwarding hop because the resulting client IP is used for authentication throttling and impersonation audit context.
 
 Fixed demo identities are a Development-only runtime concern. The current EF model seeds stable roles and reference data, but not users or password hashes. The remediation migration disables the historical demo identities for migration-only and non-Development runs; guarded Development startup restores the local demo password and role assignments.
 

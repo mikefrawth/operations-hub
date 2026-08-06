@@ -33,6 +33,12 @@ public interface IOptionalRequestClassificationAdvisor
     public Task<RequestClassificationAdvice?> ClassifyAsync(RequestClassificationContext context, CancellationToken cancellationToken);
 }
 
+/// <summary>Applies a shared per-user quota across HTTP and server-rendered classification callers.</summary>
+public interface IRequestClassificationUsageLimiter
+{
+    public bool TryAcquire(string userId);
+}
+
 public sealed record RequestClassificationContext(
     string Title,
     string Description,
@@ -47,13 +53,16 @@ public sealed class RequestClassificationService : IRequestClassificationService
     private const int SummaryMaximumLength = 280;
     private readonly IReferenceDataStore referenceDataStore;
     private readonly IOptionalRequestClassificationAdvisor optionalAdvisor;
+    private readonly IRequestClassificationUsageLimiter usageLimiter;
 
     public RequestClassificationService(
         IReferenceDataStore referenceDataStore,
-        IOptionalRequestClassificationAdvisor optionalAdvisor)
+        IOptionalRequestClassificationAdvisor optionalAdvisor,
+        IRequestClassificationUsageLimiter usageLimiter)
     {
         this.referenceDataStore = referenceDataStore;
         this.optionalAdvisor = optionalAdvisor;
+        this.usageLimiter = usageLimiter;
     }
 
     public async Task<RequestOperationResult<RequestClassificationSuggestion>> ClassifyAsync(
@@ -68,9 +77,24 @@ public sealed class RequestClassificationService : IRequestClassificationService
 
         var title = Normalize(command.Title);
         var description = Normalize(command.Description);
+        if (title.Length > ServiceRequest.TitleMaximumLength)
+        {
+            return Validation("title", $"Title cannot exceed {ServiceRequest.TitleMaximumLength} characters.");
+        }
+
+        if (description.Length > ServiceRequest.DescriptionMaximumLength)
+        {
+            return Validation("description", $"Description cannot exceed {ServiceRequest.DescriptionMaximumLength} characters.");
+        }
+
         if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(description))
         {
             return Validation("request", "Enter a title or description before requesting a suggestion.");
+        }
+
+        if (!usageLimiter.TryAcquire(actor.UserId))
+        {
+            return RateLimited();
         }
 
         var requestTypes = (await referenceDataStore.GetRequestTypesAsync(true, cancellationToken))
@@ -191,4 +215,10 @@ public sealed class RequestClassificationService : IRequestClassificationService
 
     private static RequestOperationResult<RequestClassificationSuggestion> Forbidden() =>
         new(RequestOperationStatus.Forbidden, default, new Dictionary<string, string[]>());
+
+    private static RequestOperationResult<RequestClassificationSuggestion> RateLimited() =>
+        new(
+            RequestOperationStatus.RateLimited,
+            default,
+            new Dictionary<string, string[]> { ["request"] = ["Too many classification requests. Wait a minute and try again."] });
 }

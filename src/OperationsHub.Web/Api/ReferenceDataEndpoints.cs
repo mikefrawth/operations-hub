@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Antiforgery;
 using OperationsHub.Application.ReferenceData;
 
 namespace OperationsHub.Web.Api;
@@ -11,16 +10,16 @@ public static class ReferenceDataEndpoints
             .RequireAuthorization(AuthorizationPolicies.Administrator);
 
         group.MapGet("/departments", GetDepartmentsAsync);
-        group.MapPost("/departments", CreateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        group.MapPut("/departments/{id:guid}", UpdateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        group.MapPost("/departments/{id:guid}/deactivate", DeactivateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        group.MapPost("/departments/{id:guid}/reactivate", ReactivateDepartmentAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPost("/departments", CreateDepartmentAsync).RequireAntiforgeryValidation();
+        group.MapPut("/departments/{id:guid}", UpdateDepartmentAsync).RequireAntiforgeryValidation();
+        group.MapPost("/departments/{id:guid}/deactivate", DeactivateDepartmentAsync).RequireAntiforgeryValidation();
+        group.MapPost("/departments/{id:guid}/reactivate", ReactivateDepartmentAsync).RequireAntiforgeryValidation();
 
         group.MapGet("/request-types", GetRequestTypesAsync);
-        group.MapPost("/request-types", CreateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        group.MapPut("/request-types/{id:guid}", UpdateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        group.MapPost("/request-types/{id:guid}/deactivate", DeactivateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
-        group.MapPost("/request-types/{id:guid}/reactivate", ReactivateRequestTypeAsync).WithMetadata(new RequireAntiforgeryTokenAttribute(true));
+        group.MapPost("/request-types", CreateRequestTypeAsync).RequireAntiforgeryValidation();
+        group.MapPut("/request-types/{id:guid}", UpdateRequestTypeAsync).RequireAntiforgeryValidation();
+        group.MapPost("/request-types/{id:guid}/deactivate", DeactivateRequestTypeAsync).RequireAntiforgeryValidation();
+        group.MapPost("/request-types/{id:guid}/reactivate", ReactivateRequestTypeAsync).RequireAntiforgeryValidation();
 
         return endpoints;
     }

@@ -52,8 +52,7 @@
     protected override async Task OnInitializedAsync()
     {
         var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
-        var role = principal.IsInRole("Administrator") ? RequestActorRole.Administrator : RequestActorRole.Manager;
-        var actor = new RequestActor(principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."), role);
+        var actor = RequestActorClaimsMapper.Create(principal);
         var result = await RequestService.GetOpenRequestSummariesAsync(actor, CancellationToken.None);
         if (result.Succeeded)
         {

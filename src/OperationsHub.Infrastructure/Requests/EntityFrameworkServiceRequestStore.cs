@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OperationsHub.Application.Requests;
 using OperationsHub.Domain.Entities;
+using OperationsHub.Infrastructure.Identity;
 using OperationsHub.Infrastructure.Persistence;
 using System.Data.Common;
 
@@ -14,7 +15,16 @@ public sealed class EntityFrameworkServiceRequestStore : IServiceRequestStore
 
     public Task<bool> RequestTypeIsActiveAsync(Guid id, CancellationToken cancellationToken) => database.RequestTypes.AnyAsync(x => x.Id == id && x.IsActive, cancellationToken);
     public Task<bool> DepartmentIsActiveAsync(Guid id, CancellationToken cancellationToken) => database.Departments.AnyAsync(x => x.Id == id && x.IsActive, cancellationToken);
-    public Task<bool> UserExistsAsync(string id, CancellationToken cancellationToken) => database.Users.AnyAsync(x => x.Id == id, cancellationToken);
+    public Task<bool> ActiveTechnicianExistsAsync(string id, DateTimeOffset asOfUtc, CancellationToken cancellationToken) =>
+        (
+            from user in database.Users
+            join userRole in database.UserRoles on user.Id equals userRole.UserId
+            join role in database.Roles on userRole.RoleId equals role.Id
+            where user.Id == id &&
+                  role.Name == RoleNames.Technician &&
+                  (user.LockoutEnd == null || user.LockoutEnd <= asOfUtc)
+            select user.Id)
+        .AnyAsync(cancellationToken);
     public Task<ServiceRequest?> FindAsync(Guid id, CancellationToken cancellationToken) => database.ServiceRequests.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
     public Task RefreshAsync(ServiceRequest request, CancellationToken cancellationToken) => database.Entry(request).ReloadAsync(cancellationToken);
     public async Task<IReadOnlyList<RequestAssignment>> GetAssignmentsAsync(Guid requestId, CancellationToken cancellationToken) => await database.RequestAssignments.AsNoTracking().Where(x => x.ServiceRequestId == requestId).OrderBy(x => x.AssignedAtUtc).ToListAsync(cancellationToken);

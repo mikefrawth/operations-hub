@@ -1,5 +1,5 @@
 @page "/requests"
-@attribute [Authorize]
+@attribute [Authorize(Policy = AuthorizationPolicies.OperationsUser)]
 @using System.ComponentModel.DataAnnotations
 @inject IServiceRequestWorkflowService RequestService
 @inject IRequestClassificationService RequestClassificationService
@@ -317,9 +317,7 @@
     private async Task<RequestActor> GetActorAsync()
     {
         var principal = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User;
-        return new RequestActor(
-            principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? throw new InvalidOperationException("Authenticated user ID is missing."),
-            principal.IsInRole("Administrator") ? RequestActorRole.Administrator : principal.IsInRole("Manager") ? RequestActorRole.Manager : principal.IsInRole("Technician") ? RequestActorRole.Technician : RequestActorRole.Requester);
+        return RequestActorClaimsMapper.Create(principal);
     }
 
     private sealed class RequestInput

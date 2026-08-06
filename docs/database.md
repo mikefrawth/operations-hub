@@ -6,6 +6,8 @@ Milestone 1 established MySQL 8.4 persistence through EF Core 10 and MySQL Conne
 
 Milestone 7's [20260805232735_AddDepartmentPerformanceReporting.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260805232735_AddDepartmentPerformanceReporting.cs) creates the department-performance view plus indexes for department/status aggregation and terminal-status lookup. Its rollback quotes the MySQL provider's truncated index name because that generated name ends in `~`.
 
+The post-review [20260806002333_CodeReviewRemediation.cs](../src/OperationsHub.Infrastructure/Persistence/Migrations/20260806002333_CodeReviewRemediation.cs) aligns the open-summary and assignment SQL with the persisted status enum and removes the unused `work_logs` table. No application workflow ever wrote work-log data; work logs remain an optional future capability that will require a new domain and migration design if selected.
+
 In Development, the web host applies pending migrations, initializes demo identities, and creates an idempotent portfolio request at startup. This includes both native startup and the full local Compose stack. The committed loopback and private-Compose connections disable TLS only for isolated local development. The Compose connection also enables MySQL public-key retrieval because MySQL 8.4's default authentication cannot otherwise establish this non-TLS Development connection from a fresh volume. Any non-Development run must supply `ConnectionStrings__OperationsHub` with appropriate transport security and must not copy this Development-only setting blindly. The container image's `--migrate` mode applies schema changes without starting HTTP or creating demo identities; CI verifies it against the disposable local Compose database.
 
 ## Schema
@@ -19,12 +21,11 @@ erDiagram
     service_requests ||--o{ request_assignments : records
     service_requests ||--o{ request_comments : contains
     service_requests ||--o{ request_status_history : records
-    service_requests ||--o{ work_logs : contains
     service_requests o|--o{ audit_events : audits
     AspNetUsers ||--o{ audit_events : acts_in
 ```
 
-Identity supplies `AspNetUsers`, `AspNetRoles`, and its supporting tables. Application tables use lowercase snake case: `departments`, `request_types`, `service_requests`, `request_assignments`, `request_comments`, `request_status_history`, `work_logs`, and `audit_events`.
+Identity supplies `AspNetUsers`, `AspNetRoles`, and its supporting tables. Application tables use lowercase snake case: `departments`, `request_types`, `service_requests`, `request_assignments`, `request_comments`, `request_status_history`, and `audit_events`.
 
 All application timestamps are UTC `datetime(6)`. Referenced records use restrictive foreign keys, so no request or audit history can be removed by a cascade. Departments and request types have `is_active`; Milestone 2 administrators can deactivate them while retaining the row and its historical relationships. Names remain unique even after deactivation, so a retired name cannot be reused. `service_requests.version` is configured as EF's concurrency token; the update workflow that increments and returns it arrives in Milestone 4.
 
@@ -57,7 +58,7 @@ In Development, an Administrator can select an active single-role Requester, Tec
 
 ## Service-request workflow
 
-Milestone 3 stores current request state in `service_requests` and preserves append-only assignment, status, comment, and audit records in their corresponding tables. Requesters can view their own requests and edit only non-resolved/non-closed ones. Technicians see and transition requests assigned to them. Managers and administrators see all requests and can assign or reassign them. The protected `/api/requests` endpoints provide paged, searchable, filterable lists plus detail, create, edit, assignment, status, and comment operations. Every cookie-authenticated mutation requires antiforgery validation.
+Milestone 3 stores current request state in `service_requests` and preserves append-only assignment, status, comment, and audit records in their corresponding tables. Requesters can view their own requests and edit only non-resolved/non-closed ones. Technicians see and transition requests assigned to them. Managers and administrators see all requests and can assign or reassign them only to an active Identity user in the Technician role; this is validated inside the Application workflow, not only by the UI directory. The protected `/api/requests` endpoints provide paged, searchable, filterable lists plus detail, create, edit, assignment, status, and comment operations. Every cookie-authenticated JSON mutation validates its antiforgery cookie/header pair in an endpoint filter before application code runs.
 
 ## Commands
 
@@ -80,11 +81,11 @@ Migration-only mode uses the current environment configuration but never invokes
 
 ## Views and stored procedures
 
-Milestone 4 adds [vw_open_request_summary.sql](../database/views/vw_open_request_summary.sql), which exposes new, in-progress, and on-hold requests with a computed age in seconds. Managers and administrators can view it at `/requests/open-summary`; the API equivalent is `GET /api/requests/open-summary`.
+Milestone 4 adds [vw_open_request_summary.sql](../database/views/vw_open_request_summary.sql), which exposes persisted statuses `New = 1`, `InProgress = 2`, and `OnHold = 3` with a computed age in seconds. Managers and administrators can view it at `/requests/open-summary`; the API equivalent is `GET /api/requests/open-summary`.
 
 Milestone 7 adds [vw_department_performance.sql](../database/views/vw_department_performance.sql), a stable all-time read model grouped by the request's historical department (including an `Unassigned` group). It returns total and open volume, completed volume, average resolution hours, and SLA outcomes. A request becomes completed at its first `Resolved` or `Closed` status-history event. The fixed, documented targets are Critical 4 hours, High 8 hours, Normal 72 hours, and Low 120 hours. Managers and administrators can view the report at `/reports/department-performance`, consume `GET /api/reports/department-performance`, or download the browser-authenticated `GET /api/reports/department-performance.csv` export.
 
-[sp_assign_request.sql](../database/procedures/sp_assign_request.sql) owns the selected transactional assignment workflow. It locks the request row, checks the expected version and closed state, updates the current assignment and version, appends assignment/audit records, and commits as one transaction. A stale version rolls back and returns `conflict`, so it cannot append partial history. The Infrastructure implementation calls it through a parameterized `DbCommand`; ordinary CRUD remains EF Core.
+[sp_assign_request.sql](../database/procedures/sp_assign_request.sql) owns the selected transactional assignment workflow. It locks the request row, checks the expected version and persisted `Closed = 5` state, updates the current assignment and version, appends assignment/audit records, and commits as one transaction. A stale or closed request rolls back without partial history; a resolved request may still be reassigned consistently with the Domain rule. The Infrastructure implementation calls it through a parameterized `DbCommand`; ordinary CRUD remains EF Core.
 
 `service_requests.version` is now an application-managed EF concurrency token. Request edits and status changes increment it in the same EF update, while the procedure increments it during assignment. The UI and mutation DTOs round-trip the version; conflicts return HTTP `409` with a safe refresh-and-retry message.
 

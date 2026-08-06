@@ -11,7 +11,7 @@ public sealed class RequestClassificationServiceTests
     public async Task ClassifyAsyncSuggestsAccessAndHighPriorityFromDeterministicRules()
     {
         var accessType = new RequestType(Guid.NewGuid(), "Access request", "Request access to an internal system or service.", DateTimeOffset.UtcNow);
-        var service = new RequestClassificationService(new ClassificationReferenceDataStore(accessType), new UnavailableAdvisor());
+        var service = new RequestClassificationService(new ClassificationReferenceDataStore(accessType), new UnavailableAdvisor(), new PermitAllLimiter());
 
         var result = await service.ClassifyAsync(
             new RequestActor("requester", RequestActorRole.Requester),
@@ -29,7 +29,7 @@ public sealed class RequestClassificationServiceTests
     public async Task ClassifyAsyncFallsBackToDeterministicRulesWhenOptionalAdvisorFails()
     {
         var facilitiesType = new RequestType(Guid.NewGuid(), "Facilities issue", "Report an issue with a workplace or facility.", DateTimeOffset.UtcNow);
-        var service = new RequestClassificationService(new ClassificationReferenceDataStore(facilitiesType), new ThrowingAdvisor());
+        var service = new RequestClassificationService(new ClassificationReferenceDataStore(facilitiesType), new ThrowingAdvisor(), new PermitAllLimiter());
 
         var result = await service.ClassifyAsync(
             new RequestActor("requester", RequestActorRole.Requester),
@@ -45,7 +45,7 @@ public sealed class RequestClassificationServiceTests
     public async Task ClassifyAsyncRejectsNonRequesterBeforeReadingReferenceData()
     {
         var store = new ClassificationReferenceDataStore();
-        var service = new RequestClassificationService(store, new UnavailableAdvisor());
+        var service = new RequestClassificationService(store, new UnavailableAdvisor(), new PermitAllLimiter());
 
         var result = await service.ClassifyAsync(
             new RequestActor("manager", RequestActorRole.Manager),
@@ -54,6 +54,39 @@ public sealed class RequestClassificationServiceTests
 
         Assert.Equal(RequestOperationStatus.Forbidden, result.Status);
         Assert.False(store.RequestTypesRead);
+    }
+
+    [Fact]
+    public async Task ClassifyAsyncRejectsInputThatExceedsRequestLimitsBeforeCallingAdvisor()
+    {
+        var advisor = new TrackingAdvisor();
+        var service = new RequestClassificationService(new ClassificationReferenceDataStore(), advisor, new PermitAllLimiter());
+
+        var result = await service.ClassifyAsync(
+            new RequestActor("requester", RequestActorRole.Requester),
+            new RequestClassificationCommand(new string('a', ServiceRequest.TitleMaximumLength + 1), "Description"),
+            CancellationToken.None);
+
+        Assert.Equal(RequestOperationStatus.ValidationFailed, result.Status);
+        Assert.Contains("title", result.Errors.Keys);
+        Assert.False(advisor.WasCalled);
+    }
+
+    [Fact]
+    public async Task ClassifyAsyncRejectsAnExhaustedUserQuotaBeforeCallingDependencies()
+    {
+        var store = new ClassificationReferenceDataStore();
+        var advisor = new TrackingAdvisor();
+        var service = new RequestClassificationService(store, advisor, new RejectAllLimiter());
+
+        var result = await service.ClassifyAsync(
+            new RequestActor("requester", RequestActorRole.Requester),
+            new RequestClassificationCommand("Cannot sign in", "I am locked out."),
+            CancellationToken.None);
+
+        Assert.Equal(RequestOperationStatus.RateLimited, result.Status);
+        Assert.False(store.RequestTypesRead);
+        Assert.False(advisor.WasCalled);
     }
 
     private sealed class UnavailableAdvisor : IOptionalRequestClassificationAdvisor
@@ -66,6 +99,27 @@ public sealed class RequestClassificationServiceTests
     {
         public Task<RequestClassificationAdvice?> ClassifyAsync(RequestClassificationContext context, CancellationToken cancellationToken) =>
             throw new HttpRequestException("The optional provider is unavailable.");
+    }
+
+    private sealed class TrackingAdvisor : IOptionalRequestClassificationAdvisor
+    {
+        public bool WasCalled { get; private set; }
+
+        public Task<RequestClassificationAdvice?> ClassifyAsync(RequestClassificationContext context, CancellationToken cancellationToken)
+        {
+            WasCalled = true;
+            return Task.FromResult<RequestClassificationAdvice?>(null);
+        }
+    }
+
+    private sealed class PermitAllLimiter : IRequestClassificationUsageLimiter
+    {
+        public bool TryAcquire(string userId) => true;
+    }
+
+    private sealed class RejectAllLimiter : IRequestClassificationUsageLimiter
+    {
+        public bool TryAcquire(string userId) => false;
     }
 
     private sealed class ClassificationReferenceDataStore : IReferenceDataStore
